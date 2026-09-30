@@ -1,3 +1,7 @@
+# MeuPetSeguro-FrontEnd
+O MeuPet Seguro é um sistema de Smart Home para acompanhar pets à distância. Ele une aplicativo mobile, dispositivos IoT e Inteligência Artificial para monitorar a atividade do animal e o que está acontecendo com os potes de comida e água.
+
+
 # Welcome to your Expo app 👋
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
