@@ -1,13 +1,18 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { colors, spacing } from '@/constants/petTheme';
 
-type Props = { children: React.ReactNode; scroll?: boolean };
+type Props = {
+  children: React.ReactNode;
+  scroll?: boolean;
+  edges?: Edge[];
+  footer?: React.ReactNode;
+};
 
-export function ScreenContainer({ children, scroll = true }: Props) {
+export function ScreenContainer({ children, scroll = true, edges, footer }: Props) {
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={edges}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <View style={styles.circleTop} />
       <View style={styles.circleBottom} />
@@ -24,6 +29,7 @@ export function ScreenContainer({ children, scroll = true }: Props) {
           <View style={styles.content}>{children}</View>
         )}
       </KeyboardAvoidingView>
+      {footer}
     </SafeAreaView>
   );
 }

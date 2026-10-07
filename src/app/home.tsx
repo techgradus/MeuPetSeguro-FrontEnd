@@ -1,3 +1,4 @@
+import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
@@ -167,7 +168,7 @@ function PetAvatar({
 
   return (
     <View style={[styles.avatarFallback, box]}>
-      <Text style={{ fontSize: emojiSize }}>{pet.emoji}</Text>
+      <Ionicons name="paw" size={emojiSize} color={colors.primary} />
     </View>
   );
 }
@@ -298,6 +299,7 @@ function BottomItem({
 
 export default function HomeScreen() {
   const [selectedPet, setSelectedPet] = useState<PetId>('Rex');
+  const goToTab = useTabNavigation();
 
   const pet = pets[selectedPet];
 
@@ -515,7 +517,10 @@ export default function HomeScreen() {
               active
             />
 
-            <BottomItem icon="paw-outline" activeIcon="paw" label="Meu Pet" />
+            <BottomItem icon="paw-outline" activeIcon="paw" label="Meu Pet" 
+             onPress={() => goToTab('meus-pets')}
+            />  
+            
 
             <BottomItem
               icon="notifications-outline"
