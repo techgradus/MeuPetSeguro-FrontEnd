@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { BottomTabBar } from '@/components/ui/BottomTabBar';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
@@ -12,6 +13,7 @@ import { SelectField } from '@/components/pets/SelectField';
 import { InfoCard } from '@/components/pets/InfoCard';
 import { useResponsive } from '@/hooks/useResponsive';
 import { petService } from '@/services/petService';
+import { newPetDraft } from '@/services/newPetDraft';
 import { Pet, PetFormValues, Species } from '@/types/pet';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 
@@ -35,6 +37,7 @@ const toForm = (p: Pet): PetFormValues => ({
 });
 
 export default function MeusPetsScreen() {
+  const router = useRouter();
   const { ms } = useResponsive();
   const goToTab = useTabNavigation();
   const [pets, setPets] = useState<Pet[]>([]);
@@ -83,6 +86,11 @@ export default function MeusPetsScreen() {
   const comingSoon = (title: string) => () =>
     Alert.alert(title, 'Esta função será integrada nas próximas etapas.');
 
+  const addNewPet = () => {
+    newPetDraft.reset();
+    router.push('/novo-pet');
+  };
+
   if (!selected || !form) return <ScreenContainer edges={['top', 'left', 'right']}><View /></ScreenContainer>;
 
   const { upToDate, pending } = selected.vaccines;
@@ -97,7 +105,7 @@ export default function MeusPetsScreen() {
           <Text style={styles.kicker}>Perfis</Text>
           <Text style={[styles.title, { fontSize: ms(26) }]}>Meus pets</Text>
         </View>
-        <TouchableOpacity onPress={comingSoon('Adicionar novo pet')} hitSlop={8}>
+        <TouchableOpacity onPress={addNewPet} hitSlop={8}>
           <Text style={styles.link}>+ Adicionar novo pet</Text>
         </TouchableOpacity>
       </View>
