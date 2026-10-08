@@ -9,6 +9,7 @@ export type Pet = {
   breed: string;
   age: string;      // anos
   weight: string;   // kg (formato pt-BR: "28,9")
+  notes?: string;
   photo?: ImageSourcePropType;
   vaccines: { upToDate: number; pending: number };
   device?: { name: string; linked: boolean };
