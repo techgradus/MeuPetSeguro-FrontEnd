@@ -41,6 +41,7 @@ const TABS: Tab[] = [
     label: 'Alertas',
     icon: 'notifications-outline',
     notification: true,
+    route: '/alertas',
     // TODO: route: '/alertas',
   },
   {

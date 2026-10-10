@@ -210,7 +210,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Notificações, ${user.unreadAlerts} não lidas`}
               // TODO: navegar para a Central de alertas
-              onPress={() => {}}
+              onPress={() => router.navigate('/alertas')}
             >
               <Ionicons
                 name="notifications-outline"
