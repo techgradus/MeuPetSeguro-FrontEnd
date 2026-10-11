@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
+import { newPetDraft } from '@/services/newPetDraft';
 import {
     Pressable,
     ScrollView,
@@ -66,6 +68,17 @@ export default function SettingsScreen() {
 
   function openAccount() {
     router.push('/minha-conta');
+  }
+
+  function addDevice() {
+    newDeviceDraft.reset();
+    newDeviceDraft.set({ origin: 'config' });
+    router.push('/novo-dispositivo');
+  }
+
+  function addPet() {
+    newPetDraft.reset();
+    router.push('/novo-pet');
   }
 
   function signOut() {
@@ -211,8 +224,7 @@ export default function SettingsScreen() {
               icon="wifi-outline"
               title="Dispositivos"
               subtitle="Adicionar ou gerenciar"
-              // TODO: abrir a tela de Novo dispositivo
-              onPress={() => {}}
+              onPress={addDevice}
               divider
             />
 
@@ -220,8 +232,7 @@ export default function SettingsScreen() {
               icon="paw-outline"
               title="Adicionar novo pet"
               subtitle="Cadastre e conecte um dispositivo"
-              // TODO: abrir a tela de Novo pet
-              onPress={() => router.navigate('/novo-pet/concluido')}
+              onPress={addPet}
               divider
             />
 
