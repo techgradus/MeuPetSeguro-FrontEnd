@@ -382,7 +382,7 @@ export default function HomeScreen() {
             style={styles.deviceCard}
             accessibilityRole="button"
             // TODO: navegar para Config > Dispositivos
-            onPress={() => {}}
+            onPress={() => router.navigate('/config')}
           >
             <View style={styles.deviceIcon}>
               <Ionicons
@@ -405,7 +405,7 @@ export default function HomeScreen() {
             style={styles.insightCard}
             accessibilityRole="button"
             // TODO: navegar para Relatórios
-            onPress={() => {}}
+            onPress={() => router.navigate('/relatorios')}
           >
             <View style={styles.insightIcon}>
               <Ionicons name="sparkles-outline" size={s(22)} color="#FFFFFF" />

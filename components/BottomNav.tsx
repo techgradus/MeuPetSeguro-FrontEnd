@@ -48,12 +48,14 @@ const TABS: Tab[] = [
     id: 'reports',
     label: 'Relatórios',
     icon: 'analytics-outline',
+    route: '/relatorios',
     // TODO: route: '/relatorios',
   },
   {
     id: 'settings',
     label: 'Config',
     icon: 'settings-outline',
+    route: '/config',
     // TODO: route: '/config',
   },
 ];

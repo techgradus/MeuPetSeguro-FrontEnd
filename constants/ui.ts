@@ -23,4 +23,7 @@ export const ui = {
   live: '#49B94A',
   intense: '#F26B4F',
   rest: '#2FB5A7',
+  signOut: '#E5484D',
+  signOutSoft: '#FFE1DA',
+  signOutBorder: '#F5C2B5',
 };
