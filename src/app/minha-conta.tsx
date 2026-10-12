@@ -15,23 +15,13 @@ import {
 import PhoneFrame from '@/components/PhoneFrame';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
+import { useAuth } from '@/hooks/useAuth';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
-
-/* ============================================================
-   DADOS MOCK
-   Quando existir login/API, troque por dados do usuário real.
-============================================================ */
-
-const initialUser = {
-  name: 'Arthur Mendonça',
-  email: 'arthur@meupetseguro.app',
-  phone: '(11) 98765-4321',
-};
 
 type FieldKey = 'name' | 'email' | 'phone';
 
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+function getInitials(name?: string) {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
   const first = parts[0][0];
   const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
@@ -57,7 +47,13 @@ function formatPhone(value: string) {
 export default function AccountScreen() {
   const router = useRouter();
 
-  const [form, setForm] = useState(initialUser);
+  const {user, signOut: logout } = useAuth();
+
+  const [form, setForm] = useState({
+    name: user?.name ?? '',
+    email: user?.email ?? '',
+    phone: '',
+  });
   const [focused, setFocused] = useState<FieldKey | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -99,8 +95,8 @@ export default function AccountScreen() {
     setSaved(true);
   }
 
-  function signOut() {
-    // TODO: limpar a sessão do usuário antes de voltar ao login
+  async function signOut() {
+    await logout();
     router.replace('/login');
   }
 

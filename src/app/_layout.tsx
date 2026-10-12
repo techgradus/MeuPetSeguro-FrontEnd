@@ -1,7 +1,9 @@
 import { useEffect, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { WEB_PHONE } from '@/hooks/useResponsive';
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -10,13 +12,16 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { WEB_PHONE } from '@/hooks/useResponsive';
+
 
 // Mantém a tela nativa de abertura até as fontes carregarem.
 SplashScreen.preventAutoHideAsync();
 
 // Para voltar a ver o app em tela cheia no navegador, mude para false.
 const SHOW_PHONE_FRAME_ON_WEB = true;
+
+// Telas que podem ser abertas SEM estar logado. Qualquer outra rota exige login.
+const PUBLIC_ROUTES = ['login', 'forgot-password'];
 
 /** No navegador, mostra o app em uma moldura do tamanho de um celular. Em celular de verdade não faz nada. */
 function WebPhoneFrame({ children }: { children: ReactNode }) {
@@ -26,6 +31,31 @@ function WebPhoneFrame({ children }: { children: ReactNode }) {
       <View style={styles.phone}>{children}</View>
     </View>
   );
+}
+
+function AppStack() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments() as string[];
+  const navigationState = useRootNavigationState();
+
+  const first = segments[0];
+  const isPublic = !first || first === 'index' || PUBLIC_ROUTES.includes(first);
+
+  // Esconde a splash nativa quando a sessão já foi lida.
+  useEffect(() => {
+    if (!isLoading) SplashScreen.hideAsync();
+  }, [isLoading]);
+
+  // Deslogado (logout ou token expirado) em tela privada, volta para o login.
+  useEffect(() => {
+    if (isLoading || !navigationState?.key) return;
+    if (!user && !isPublic) router.replace('/login');
+  }, [isLoading, navigationState?.key, user, isPublic, router]);
+
+  if (isLoading) return null;
+
+  return <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />;
 }
 
 export default function RootLayout() {
@@ -39,15 +69,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (error) console.warn('Erro ao carregar as fontes:', error);
-    if (loaded || error) SplashScreen.hideAsync();
-  }, [loaded, error]);
+  }, [error]);
 
   if (!loaded && !error) return null;
 
   return (
-    <WebPhoneFrame>
-      <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
-    </WebPhoneFrame>
+    <AuthProvider>
+      <WebPhoneFrame>
+        <AppStack />
+      </WebPhoneFrame>
+    </AuthProvider>
   );
 }
 

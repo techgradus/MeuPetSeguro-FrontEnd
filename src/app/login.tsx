@@ -7,8 +7,9 @@ import { Logo } from '@/components/ui/Logo';
 import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
+import { useAuth } from '@/hooks/useAuth';
 import { validateEmail, validatePassword } from '@/utils/validators';
-import { authService, INVALID_CREDENTIALS } from '@/services/authService';
+import { INVALID_CREDENTIALS } from '@/services/authService';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 
 
@@ -20,6 +21,7 @@ export default function LoginScreen() {
   const [errors, setErrors] = useState<{ email?: string | null; password?: string | null }>({});
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { signIn } = useAuth();
 
   const handleLogin = async () => {
     const next = { email: validateEmail(email), password: validatePassword(password) };
@@ -29,8 +31,7 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
-      await authService.signIn({ email: email.trim(), password });
-      // TODO: após integrar o back-end, salvar o token/sessão antes de navegar.
+      await signIn({ email: email.trim(), password });
       router.replace('/splash');
     } catch (e) {
       const invalid = e instanceof Error && e.message === INVALID_CREDENTIALS;

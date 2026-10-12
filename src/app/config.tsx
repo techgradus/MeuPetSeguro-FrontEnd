@@ -15,18 +15,9 @@ import {
 import PhoneFrame from '@/components/PhoneFrame';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
+import { useAuth } from '@/hooks/useAuth';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
-/* ============================================================
-   DADOS MOCK
-   Quando existir login/API, troque por dados do usuário real.
-============================================================ */
-
-const user = {
-  initials: 'AM',
-  name: 'Arthur Mendonça',
-  email: 'arthur@meupetseguro.app',
-};
 
 type RowProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -44,8 +35,19 @@ type RowProps = {
    TELA
 ============================================================ */
 
+function getInitials(name?: string) {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const first = parts[0][0];
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
+
+  const { user, signOut: logout } = useAuth();
+  const initials = getInitials(user?.name);
 
   // TODO: ligar ao tema do app e às permissões de notificação
   const [darkMode, setDarkMode] = useState(false);
@@ -81,8 +83,8 @@ export default function SettingsScreen() {
     router.push('/novo-pet');
   }
 
-  function signOut() {
-    // TODO: limpar a sessão do usuário antes de voltar ao login
+  async function signOut() {
+    await logout();
     router.replace('/login');
   }
 
@@ -163,15 +165,15 @@ export default function SettingsScreen() {
             style={styles.profileCard}
             onPress={openAccount}
             accessibilityRole="button"
-            accessibilityLabel={`${user.name}. Abrir minha conta`}
+            accessibilityLabel={`${user?.name}. Abrir minha conta`}
           >
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user.initials}</Text>
+              <Text style={styles.avatarText}>{initials}</Text>
             </View>
 
             <View style={styles.rowText}>
-              <Text style={styles.profileName}>{user.name}</Text>
-              <Text style={styles.profileEmail}>{user.email}</Text>
+              <Text style={styles.profileName}>{user?.name}</Text>
+              <Text style={styles.profileEmail}>{user?.email}</Text>
             </View>
 
             <Ionicons
