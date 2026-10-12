@@ -12,6 +12,7 @@ export const TEST_CREDENTIALS = {
 };
 
 export const INVALID_CREDENTIALS = 'INVALID_CREDENTIALS';
+export const INVALID_CURRENT_PASSWORD = 'INVALID_CURRENT_PASSWORD';
 
 const fakeDelay = (ms = 900) => new Promise<void>((res) => setTimeout(res, ms));
 
@@ -28,5 +29,12 @@ export const authService = {
   async requestPasswordReset(_email: string): Promise<void> {
     // TODO: POST /auth/forgot-password
     await fakeDelay();
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    // TODO: POST /auth/change-password
+    await fakeDelay();
+    if (currentPassword !== TEST_CREDENTIALS.password) throw new Error(INVALID_CURRENT_PASSWORD);
+    TEST_CREDENTIALS.password = newPassword; // MOCK: vale só até recarregar o app
   },
 };
