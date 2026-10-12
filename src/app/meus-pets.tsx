@@ -14,6 +14,7 @@ import { InfoCard } from '@/components/pets/InfoCard';
 import { useResponsive } from '@/hooks/useResponsive';
 import { petService } from '@/services/petService';
 import { newPetDraft } from '@/services/newPetDraft';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { Pet, PetFormValues, Species } from '@/types/pet';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 
@@ -91,6 +92,12 @@ export default function MeusPetsScreen() {
     router.push('/novo-pet');
   };
 
+  const addDevice = () => {
+    newDeviceDraft.reset();
+    newDeviceDraft.set({ origin: 'meus-pets' });
+    router.push('/novo-dispositivo');
+  };
+
   if (!selected || !form) return <ScreenContainer edges={['top', 'left', 'right']}><View /></ScreenContainer>;
 
   const { upToDate, pending } = selected.vaccines;
@@ -158,7 +165,7 @@ export default function MeusPetsScreen() {
         title={selected.device?.name ?? 'Nenhum dispositivo'}
         badge={selected.device?.linked ? 'Vinculado' : 'Não vinculado'}
         badgeOk={!!selected.device?.linked}
-        onPress={comingSoon('Dispositivo')}
+        onPress={addDevice}
       />
 
       <View style={styles.saveBox}>
