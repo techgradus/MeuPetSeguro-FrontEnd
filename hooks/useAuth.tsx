@@ -30,7 +30,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const [token, storedUser] = await Promise.all([session.getToken(), session.getUser()]);
-        if (active) setUser(token && storedUser ? storedUser : null);
+        if (!active) return;
+
+        if (!token || !storedUser) {
+          setUser(null);
+          return;
+        }
+
+        setUser(storedUser);
+
+        authService.getMe().then((fresh) => {
+            if (active) setUser(fresh);
+          })
+          .catch(() => {});
       } catch {
         if (active) setUser(null);
       } finally {

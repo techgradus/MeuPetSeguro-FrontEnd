@@ -34,15 +34,21 @@ export const authService = {
     await session.clear();
   },
 
-  async requestPasswordReset(_email: string): Promise<void> {
-    // TODO: POST /auth/forgot-password
-    await fakeDelay();
+  async getMe(): Promise<SessionUser> {
+    return api<SessionUser>('/auth/me', { auth: true });
+  },
+
+  async requestPasswordReset(email: string): Promise<void> {
+    await api('/auth/forgot-password', { method: 'POST', body: { email } });
+  },
+
+  async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+    await api('/auth/reset-password', { method: 'POST', body: { email, code, newPassword } });
   },
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    // TODO: POST /auth/change-password
     await fakeDelay();
     if (currentPassword !== TEST_CREDENTIALS.password) throw new Error(INVALID_CURRENT_PASSWORD);
-    TEST_CREDENTIALS.password = newPassword; // MOCK: vale só até recarregar o app
+    TEST_CREDENTIALS.password = newPassword;
   },
 };
