@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { BottomTabBar } from '@/components/ui/BottomTabBar';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
@@ -11,15 +12,19 @@ import { PetAvatar } from '@/components/pets/PetAvatar';
 import { LabeledField } from '@/components/pets/LabeledField';
 import { SelectField } from '@/components/pets/SelectField';
 import { InfoCard } from '@/components/pets/InfoCard';
+import { EmptyPetsNotice } from '@/components/pets/EmptyPetsNotice';
 import { useResponsive } from '@/hooks/useResponsive';
+import { usePets } from '@/hooks/usePets';
+import { errorMessage } from '@/services/api';
 import { petService } from '@/services/petService';
 import { newPetDraft } from '@/services/newPetDraft';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
-import { Pet, PetFormValues, Species } from '@/types/pet';
+import { PetFormValues, Species } from '@/types/pet';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 
 const SPECIES: readonly Species[] = ['Cachorro', 'Gato'];
 
+type FormValues = PetFormValues & { notes: string };
 type FormErrors = Partial<Record<keyof PetFormValues, string>>;
 
 const toNumber = (v: string) => Number(v.replace(',', '.'));
@@ -33,40 +38,52 @@ function validate(v: PetFormValues): FormErrors {
   return errors;
 }
 
-const toForm = (p: Pet): PetFormValues => ({
-  name: p.name, species: p.species, breed: p.breed, age: p.age, weight: p.weight,
+const toForm = (
+  p: { name: string; species: Species; breed: string; age: string; weight: string; notes?: string },
+): FormValues => ({
+  name: p.name, species: p.species, breed: p.breed, age: p.age, weight: p.weight, notes: p.notes ?? '',
 });
 
 export default function MeusPetsScreen() {
   const router = useRouter();
   const { ms } = useResponsive();
   const goToTab = useTabNavigation();
-  const [pets, setPets] = useState<Pet[]>([]);
+  const { pets, loading, error, reload } = usePets();
   const [selectedId, setSelectedId] = useState('');
-  const [form, setForm] = useState<PetFormValues | null>(null);
+  const [form, setForm] = useState<FormValues | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
+  const idsKey = pets.map((p) => p.id).join(',');
   useEffect(() => {
-    petService.list().then((list) => {
-      setPets(list);
-      if (list[0]) { setSelectedId(list[0].id); setForm(toForm(list[0])); }
-    });
-  }, []);
+    const current = pets.find((p) => p.id === selectedId) ?? pets[0];
+    if (!current) {
+      setSelectedId('');
+      setForm(null);
+      return;
+    }
+    setSelectedId(current.id);
+    setForm(toForm(current));
+    setErrors({});
+    setSaved(false);
+    setSaveError(null);
+  }, [idsKey]);
 
   const selected = pets.find((p) => p.id === selectedId);
 
   const selectPet = (id: string) => {
     const pet = pets.find((p) => p.id === id);
     if (!pet) return;
-    setSelectedId(id); setForm(toForm(pet)); setErrors({}); setSaved(false);
+    setSelectedId(id); setForm(toForm(pet)); setErrors({}); setSaved(false); setSaveError(null);
   };
 
-  const setField = <K extends keyof PetFormValues>(key: K, value: PetFormValues[K]) => {
+  const setField = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setForm((f) => (f ? { ...f, [key]: value } : f));
     setErrors((e) => ({ ...e, [key]: undefined }));
     setSaved(false);
+    setSaveError(null);
   };
 
   const handleSave = async () => {
@@ -76,11 +93,28 @@ export default function MeusPetsScreen() {
     if (Object.keys(found).length) return;
     try {
       setSaving(true);
-      await petService.update(selected.id, form);
-      setPets((list) => list.map((p) => (p.id === selected.id ? { ...p, ...form } : p)));
+      setSaveError(null);
+      await petService.update(selected, form);
+      await reload();
       setSaved(true);
+    } catch (e) {
+      setSaveError(errorMessage(e, 'Não foi possível salvar. Tente novamente.'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const changePhoto = async () => {
+    if (!selected) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    try {
+      await petService.updatePhoto(selected.id, result.assets[0].uri);
+      await reload();
+    } catch (e) {
+      Alert.alert('Não foi possível trocar a foto', errorMessage(e, 'Tente novamente em instantes.'));
     }
   };
 
@@ -98,7 +132,22 @@ export default function MeusPetsScreen() {
     router.push('/novo-dispositivo');
   };
 
-  if (!selected || !form) return <ScreenContainer edges={['top', 'left', 'right']}><View /></ScreenContainer>;
+  // Carregando, erro ou nenhum pet ainda
+  if (!selected || !form) {
+    return (
+      <ScreenContainer
+        edges={['top', 'left', 'right']}
+        footer={<BottomTabBar active="meus-pets" onPress={goToTab} />}
+      >
+        <EmptyPetsNotice
+          loading={loading || pets.length > 0}
+          error={pets.length === 0 ? error : null}
+          onAdd={addNewPet}
+          onRetry={reload}
+        />
+      </ScreenContainer>
+    );
+  }
 
   const { upToDate, pending } = selected.vaccines;
 
@@ -125,10 +174,11 @@ export default function MeusPetsScreen() {
       </View>
 
       <View style={styles.avatarBox}>
-        <PetAvatar source={selected.photo} onPress={comingSoon('Trocar foto')} />
+        <PetAvatar source={selected.photo} onPress={changePhoto} />
       </View>
 
       {saved && <FeedbackBanner message={`Dados de ${form.name.trim()} salvos com sucesso.`} />}
+      {!!saveError && <FeedbackBanner type="error" message={saveError} />}
 
       <View style={styles.row}>
         <LabeledField label="Nome" value={form.name} onChangeText={(t) => setField('name', t)} error={errors.name} />
@@ -147,6 +197,15 @@ export default function MeusPetsScreen() {
         <LabeledField
           label="Peso" suffix="Kg" keyboardType="decimal-pad"
           value={form.weight} onChangeText={(t) => setField('weight', t.replace(/[^0-9,.]/g, ''))} error={errors.weight}
+        />
+      </View>
+
+      <View style={styles.row}>
+        <LabeledField
+          label="Observações" placeholder="Ex.: Muito brincalhona e curiosa."
+          multiline numberOfLines={3} value={form.notes}
+          onChangeText={(t) => setField('notes', t)}
+          style={{ minHeight: 70, textAlignVertical: 'top' }}
         />
       </View>
 

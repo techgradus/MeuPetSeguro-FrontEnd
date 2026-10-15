@@ -1,14 +1,15 @@
+import { clearPetsCache } from '@/hooks/usePets';
 import { setUnauthorizedHandler } from '@/services/api';
-import { authService, type SignInPayload } from '@/services/authService';
+import { authService, type SignInPayload, type UpdateProfilePayload } from '@/services/authService';
 import { session, type SessionUser } from '@/services/session';
 import {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-    type ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
 } from 'react';
 
 
@@ -17,6 +18,8 @@ type AuthContextValue = {
   isLoading: boolean;
   signIn: (payload: SignInPayload) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Edita nome/e-mail/telefone no back-end e atualiza o usuário em todo o app. */
+  updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -25,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Ao abrir o app: recupera a sessão salva e valida no back-end (GET /auth/me).
   useEffect(() => {
     let active = true;
     (async () => {
@@ -39,8 +43,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setUser(storedUser);
 
-        authService.getMe().then((fresh) => {
-            if (active) setUser(fresh);
+        // ...e confirma em segundo plano. Se o token foi recusado (401), o api.ts limpa a
+        // sessão e chama o handler abaixo (user = null), e o app volta para o login.
+        // Se estiver sem internet ou o servidor fora do ar, mantém a sessão salva.
+        authService
+          .getMe()
+          .then((fresh) => {
+            if (!active) return;
+            setUser(fresh);
+            session.saveUser(fresh).catch(() => {});
           })
           .catch(() => {});
       } catch {
@@ -59,6 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, []);
 
+  useEffect(() => {
+    if (!user) clearPetsCache();
+  }, [user]);
+
   const signIn = useCallback(async (payload: SignInPayload) => {
     const loggedUser = await authService.signIn(payload);
     setUser(loggedUser);
@@ -69,9 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateProfile = useCallback(async (payload: UpdateProfilePayload) => {
+    const updated = await authService.updateProfile(payload);
+    setUser(updated);
+  }, []);
+
   const value = useMemo(
-    () => ({ user, isLoading, signIn, signOut }),
-    [user, isLoading, signIn, signOut],
+    () => ({ user, isLoading, signIn, signOut, updateProfile }),
+    [user, isLoading, signIn, signOut, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -7,7 +7,8 @@ import PetAvatar from '@/components/PetAvatar';
 import PhoneFrame from '@/components/PhoneFrame';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
-import { isPetId, PetId, pets } from '@/data/pets';
+import type { PetId } from '@/data/pets';
+import { useDashboardPets } from '@/hooks/useDashboardPets';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
 /* ============================================================
@@ -186,12 +187,10 @@ export default function ActivityScreen() {
   const router = useRouter();
   const { pet: petParam } = useLocalSearchParams<{ pet?: string }>();
 
-  // Recebe o pet da Home (/activity?pet=Mia). Sem parâmetro, usa o Rex.
-  const petId: PetId = isPetId(petParam) ? petParam : 'Rex';
-  const pet = pets[petId];
+  const { pets } = useDashboardPets();
+  const pet = pets.find((p) => p.id === petParam) ?? pets[0];
 
   const [period, setPeriod] = useState<Period>('today');
-  const data = activityByPet[petId][period];
 
   const layout = useLayout();
   const { s } = layout;
@@ -207,6 +206,11 @@ export default function ActivityScreen() {
       layout.isWeb,
     ],
   );
+
+  // Ainda carregando os pets
+  if (!pet) return null;
+
+  const data = activityByPet[pet.sample][period];
 
   function goBack() {
     if (router.canGoBack()) {

@@ -8,6 +8,7 @@ export type SessionUser = {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
 };
 
 const storage = {
@@ -43,6 +44,10 @@ export const session = {
 
   async save(token: string, user: SessionUser): Promise<void> {
     await storage.set(TOKEN_KEY, token);
+    await storage.set(USER_KEY, JSON.stringify(user));
+  },
+
+  async saveUser(user: SessionUser): Promise<void> {
     await storage.set(USER_KEY, JSON.stringify(user));
   },
 

@@ -16,6 +16,7 @@ import PhoneFrame from '@/components/PhoneFrame';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { useAuth } from '@/hooks/useAuth';
+import { errorMessage } from '@/services/api';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
 type FieldKey = 'name' | 'email' | 'phone';
@@ -40,22 +41,22 @@ function formatPhone(value: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-/* ============================================================
-   TELA
-============================================================ */
+/* TELA */
 
 export default function AccountScreen() {
   const router = useRouter();
 
-  const {user, signOut: logout } = useAuth();
+  const { user, updateProfile, signOut: logout } = useAuth();
 
   const [form, setForm] = useState({
     name: user?.name ?? '',
     email: user?.email ?? '',
-    phone: '',
+    phone: formatPhone(user?.phone ?? ''),
   });
   const [focused, setFocused] = useState<FieldKey | null>(null);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const layout = useLayout();
   const { s } = layout;
@@ -74,10 +75,13 @@ export default function AccountScreen() {
 
   const emailValid = /^\S+@\S+\.\S+$/.test(form.email.trim());
   const nameValid = form.name.trim().length > 1;
-  const canSave = emailValid && nameValid;
+  const phoneDigits = form.phone.replace(/\D/g, '');
+  const phoneValid = phoneDigits.length === 0 || phoneDigits.length === 10 || phoneDigits.length === 11;
+  const canSave = emailValid && nameValid && phoneValid;
 
   function update(key: FieldKey, value: string) {
     setSaved(false);
+    setSaveError(null);
     setForm((current) => ({ ...current, [key]: value }));
   }
 
@@ -89,10 +93,22 @@ export default function AccountScreen() {
     }
   }
 
-  function save() {
-    if (!canSave) return;
-    // TODO: enviar os dados para a API
-    setSaved(true);
+  async function save() {
+    if (!canSave || saving) return;
+    try {
+      setSaving(true);
+      setSaveError(null);
+      await updateProfile({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: phoneDigits, // '' apaga o telefone
+      });
+      setSaved(true);
+    } catch (e) {
+      setSaveError(errorMessage(e, 'Não foi possível salvar. Tente novamente.'));
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function signOut() {
@@ -130,6 +146,7 @@ export default function AccountScreen() {
       placeholder: '(00) 00000-0000',
       keyboardType: 'phone-pad',
       autoCapitalize: 'none',
+      error: phoneValid ? undefined : 'Informe o DDD e o número.',
     },
   ];
 
@@ -291,14 +308,21 @@ export default function AccountScreen() {
 
             {/* AÇÕES */}
             <Pressable
-              style={[styles.saveButton, !canSave && styles.saveDisabled]}
+              style={[styles.saveButton, (!canSave || saving) && styles.saveDisabled]}
               onPress={save}
-              disabled={!canSave}
+              disabled={!canSave || saving}
               accessibilityRole="button"
-              accessibilityState={{ disabled: !canSave }}
+              accessibilityState={{ disabled: !canSave || saving }}
             >
-              <Text style={styles.saveText}>Salvar alterações</Text>
+              <Text style={styles.saveText}>{saving ? 'Salvando...' : 'Salvar alterações'}</Text>
             </Pressable>
+
+            {!!saveError && (
+              <View style={styles.savedRow} accessibilityLiveRegion="polite">
+                <Ionicons name="alert-circle" size={s(16)} color={ui.signOut} />
+                <Text style={[styles.savedText, { color: ui.signOut }]}>{saveError}</Text>
+              </View>
+            )}
 
             {saved && (
               <View style={styles.savedRow} accessibilityLiveRegion="polite">

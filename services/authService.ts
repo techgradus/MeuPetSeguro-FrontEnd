@@ -3,17 +3,14 @@ import { session, type SessionUser } from '@/services/session';
 
 export type SignInPayload = { email: string; password: string };
 
-type LoginResponse = { user: SessionUser; token: string };
+export type UpdateProfilePayload = { name?: string; email?: string; phone?: string | null };
 
-export const TEST_CREDENTIALS = {
-  email: 'teste@meupetseguro.com',
-  password: '123456',
-};
+type LoginResponse = { user: SessionUser; token: string };
 
 export const INVALID_CREDENTIALS = 'INVALID_CREDENTIALS';
 export const INVALID_CURRENT_PASSWORD = 'INVALID_CURRENT_PASSWORD';
 
-const fakeDelay = (ms = 900) => new Promise<void>((res) => setTimeout(res, ms));
+const BACKEND_WRONG_CURRENT_PASSWORD = 'Senha atual incorreta';
 
 export const authService = {
   async signIn({ email, password }: SignInPayload): Promise<SessionUser> {
@@ -38,6 +35,12 @@ export const authService = {
     return api<SessionUser>('/auth/me', { auth: true });
   },
 
+  async updateProfile(payload: UpdateProfilePayload): Promise<SessionUser> {
+    const user = await api<SessionUser>('/auth/me', { method: 'PUT', body: payload, auth: true });
+    await session.saveUser(user);
+    return user;
+  },
+
   async requestPasswordReset(email: string): Promise<void> {
     await api('/auth/forgot-password', { method: 'POST', body: { email } });
   },
@@ -47,8 +50,17 @@ export const authService = {
   },
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await fakeDelay();
-    if (currentPassword !== TEST_CREDENTIALS.password) throw new Error(INVALID_CURRENT_PASSWORD);
-    TEST_CREDENTIALS.password = newPassword;
+    try {
+      await api('/auth/change-password', {
+        method: 'PUT',
+        body: { currentPassword, newPassword },
+        auth: true,
+      });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 400 && e.message === BACKEND_WRONG_CURRENT_PASSWORD) {
+        throw new Error(INVALID_CURRENT_PASSWORD);
+      }
+      throw e;
+    }
   },
 };

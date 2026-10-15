@@ -6,6 +6,7 @@ import { NewPetLayout, StepKicker, StepSubtitle, StepTitle } from '@/components/
 import { Button } from '@/components/ui/Button';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { newPetDraft } from '@/services/newPetDraft';
+import { errorMessage } from '@/services/api';
 import { petService } from '@/services/petService';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 
@@ -24,6 +25,8 @@ export default function LinkDeviceScreen() {
       setSaving(true);
       await petService.add(draft);
       router.replace('/novo-pet/concluido');
+    } catch (e) {
+      Alert.alert('Não foi possível cadastrar', errorMessage(e, 'Tente novamente em instantes.'));
     } finally {
       setSaving(false);
     }

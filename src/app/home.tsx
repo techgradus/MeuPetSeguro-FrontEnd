@@ -7,19 +7,21 @@ import PetAvatar from '@/components/PetAvatar';
 import PhoneFrame from '@/components/PhoneFrame';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
-import { Pet, PetId, petIds, pets } from '@/data/pets';
+import { EmptyPetsNotice } from '@/components/pets/EmptyPetsNotice';
+import type { Pet } from '@/data/pets';
+import { useAuth } from '@/hooks/useAuth';
+import { useDashboardPets } from '@/hooks/useDashboardPets';
+import { newPetDraft } from '@/services/newPetDraft';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
-const user = { firstName: 'Beatriz', unreadAlerts: 5 };
+const alertsSummary = { unreadAlerts: 5 }; 
 const devices = { connected: 3, total: 4 };
 
 // 7 barras; a 6ª é o pico do período (destacada no design)
 const activityBars = [22, 34, 12, 41, 29, 48, 38];
 const peakBarIndex = 5;
 
-/* ============================================================
-   UTILITÁRIOS
-============================================================ */
+/* UTILITÁRIOS */
 
 const WEEKDAYS = [
   'Domingo',
@@ -152,13 +154,13 @@ function MetricCard({
   );
 }
 
-/* ============================================================
-   TELA
-============================================================ */
+/* TELA */
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [selectedPet, setSelectedPet] = useState<PetId>('Rex');
+  const { user } = useAuth();
+  const { pets, loading, error, reload } = useDashboardPets();
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
 
   const layout = useLayout();
   const { s } = layout;
@@ -175,16 +177,31 @@ export default function HomeScreen() {
     ],
   );
 
-  const pet = pets[selectedPet];
+  const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
+
+  const pet = pets.find((p) => p.id === selectedPetId) ?? pets[0];
 
   // Abre a tela de Atividade do pet que está selecionado
   function openActivity() {
-    router.push({ pathname: '/activity', params: { pet: selectedPet } });
+    router.push({ pathname: '/activity', params: { pet: pet.id } });
   }
 
   // Abre a tela de Alimentação já na aba escolhida
   function openFeeding(tab: 'food' | 'water') {
-    router.push({ pathname: '/alimentacao', params: { pet: selectedPet, tab } });
+    router.push({ pathname: '/alimentacao', params: { pet: pet.id, tab } });
+  }
+
+  function addFirstPet() {
+    newPetDraft.reset();
+    router.push('/novo-pet');
+  }
+
+  if (!pet) {
+    return (
+      <PhoneFrame active="home">
+        <EmptyPetsNotice loading={loading} error={error} onAdd={addFirstPet} onRetry={reload} />
+      </PhoneFrame>
+    );
   }
 
   return (
@@ -201,15 +218,14 @@ export default function HomeScreen() {
                 {formatToday()}
               </Text>
               <Text style={styles.greeting} numberOfLines={1}>
-                Olá, {user.firstName}!
+                Olá, {firstName}!
               </Text>
             </View>
 
             <Pressable
               style={styles.notificationButton}
               accessibilityRole="button"
-              accessibilityLabel={`Notificações, ${user.unreadAlerts} não lidas`}
-              // TODO: navegar para a Central de alertas
+              accessibilityLabel={`Notificações, ${alertsSummary.unreadAlerts} não lidas`}
               onPress={() => router.navigate('/alertas')}
             >
               <Ionicons
@@ -218,10 +234,10 @@ export default function HomeScreen() {
                 color={colors.text}
               />
 
-              {user.unreadAlerts > 0 && (
+              {alertsSummary.unreadAlerts > 0 && (
                 <View style={styles.notificationBadge}>
                   <Text style={styles.notificationNumber}>
-                    {user.unreadAlerts}
+                    {alertsSummary.unreadAlerts}
                   </Text>
                 </View>
               )}
@@ -232,12 +248,12 @@ export default function HomeScreen() {
           <Text style={styles.followingText}>ACOMPANHANDO AGORA</Text>
 
           <View style={styles.petRow}>
-            {petIds.map((id) => (
+            {pets.map((item) => (
               <PetSelectorCard
-                key={id}
-                pet={pets[id]}
-                selected={selectedPet === id}
-                onPress={() => setSelectedPet(id)}
+                key={item.id}
+                pet={item}
+                selected={pet.id === item.id}
+                onPress={() => setSelectedPetId(item.id)}
                 styles={styles}
                 s={s}
               />
@@ -509,11 +525,13 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
 
     petRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: s(12),
     },
 
     petCard: {
-      flex: 1,
+      flexGrow: 1,
+      flexBasis: '45%',
       minHeight: s(58),
       borderRadius: s(10),
       paddingHorizontal: s(10),

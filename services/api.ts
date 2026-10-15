@@ -21,10 +21,15 @@ export class NetworkError extends Error {
   }
 }
 
+export function errorMessage(e: unknown, fallback = 'Algo deu errado. Tente novamente.'): string {
+  return e instanceof ApiError || e instanceof NetworkError ? e.message : fallback;
+}
+
 type Options = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   auth?: boolean;
+  timeoutMs?: number;
 };
 
 let onUnauthorized: (() => void) | null = null;
@@ -32,8 +37,14 @@ export function setUnauthorizedHandler(fn: (() => void) | null) {
   onUnauthorized = fn;
 }
 
-export async function api<T>(path: string, { method = 'GET', body, auth = false }: Options = {}): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+export async function api<T>(
+  path: string,
+  { method = 'GET', body, auth = false, timeoutMs = TIMEOUT_MS }: Options = {},
+): Promise<T> {
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+
+  // Em FormData o Content-Type é definido pelo próprio fetch (inclui o "boundary").
+  const headers: Record<string, string> = isForm ? {} : { 'Content-Type': 'application/json' };
 
   if (auth) {
     const token = await session.getToken();
@@ -41,14 +52,14 @@ export async function api<T>(path: string, { method = 'GET', body, auth = false 
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
       signal: controller.signal,
     });
   } catch {
@@ -60,9 +71,10 @@ export async function api<T>(path: string, { method = 'GET', body, auth = false 
   const data = await res.json().catch(() => null);
 
   if (!res.ok) {
+    // 401 numa chamada autenticada = token expirado/inválido: limpa a sessão e avisa o app.
     if (res.status === 401 && auth) {
-        await session.clear();
-        onUnauthorized?.();
+      await session.clear();
+      onUnauthorized?.();
     }
     throw new ApiError(data?.error ?? 'Erro inesperado do servidor.', res.status);
   }
