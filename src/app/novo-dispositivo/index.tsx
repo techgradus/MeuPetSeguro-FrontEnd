@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceFlowLayout';
 import { Button } from '@/components/ui/Button';
+import { themed } from '@/constants/darkTheme';
 import { DEVICE_TYPES, DeviceType } from '@/constants/deviceTypes';
-import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function DeviceTypeScreen() {
   const router = useRouter();
+  const { dark, bg } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   const [type, setType] = useState<DeviceType | undefined>(newDeviceDraft.get().type);
 
   const next = () => {
@@ -38,7 +42,7 @@ export default function DeviceTypeScreen() {
               accessibilityState={{ selected }}
               style={[styles.card, selected && styles.cardSelected]}
             >
-              <View style={[styles.icon, { backgroundColor: item.softColor }]}>
+              <View style={[styles.icon, { backgroundColor: bg(item.softColor) }]}>
                 <Ionicons name={item.icon} size={20} color={item.color} />
               </View>
               <View style={styles.texts}>
@@ -58,7 +62,7 @@ export default function DeviceTypeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   list: { gap: 12, marginBottom: spacing.lg },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.surface,
@@ -74,4 +78,4 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   radioSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-});
+}, dark));

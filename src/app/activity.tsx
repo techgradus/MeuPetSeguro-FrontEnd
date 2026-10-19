@@ -5,9 +5,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PetAvatar from '@/components/PetAvatar';
 import PhoneFrame from '@/components/PhoneFrame';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { isPetId, PetId, pets } from '@/data/pets';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
 /* ============================================================
@@ -184,6 +186,7 @@ const events: ActivityEvent[] = [
 
 export default function ActivityScreen() {
   const router = useRouter();
+  const { tx } = useAppTheme();
   const { pet: petParam } = useLocalSearchParams<{ pet?: string }>();
 
   // Recebe o pet da Home (/activity?pet=Mia). Sem parâmetro, usa o Rex.
@@ -205,6 +208,7 @@ export default function ActivityScreen() {
       layout.insetTop,
       layout.insetBottom,
       layout.isWeb,
+      layout.dark,
     ],
   );
 
@@ -237,7 +241,7 @@ export default function ActivityScreen() {
               accessibilityRole="button"
               accessibilityLabel="Voltar"
             >
-              <Ionicons name="chevron-back" size={s(22)} color={colors.text} />
+              <Ionicons name="chevron-back" size={s(22)} color={tx(colors.text)} />
             </Pressable>
 
             <Text style={styles.headerTitle}>Atividade</Text>
@@ -252,7 +256,7 @@ export default function ActivityScreen() {
               <Ionicons
                 name="options-outline"
                 size={s(22)}
-                color={colors.text}
+                color={tx(colors.text)}
               />
             </Pressable>
           </View>
@@ -440,10 +444,10 @@ export default function ActivityScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     scrollContent: {
       paddingHorizontal: s(24),
       paddingTop: isWeb ? s(24) : insetTop + s(14),
@@ -805,5 +809,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       fontSize: s(13),
       color: colors.text,
     },
-  });
+  }, dark));
 }

@@ -1,16 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceFlowLayout';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
+import { themed } from '@/constants/darkTheme';
+import { colors, fonts, radius, spacing } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { deviceService, WifiNetwork } from '@/services/deviceService';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
-import { colors, fonts, radius, spacing } from '@/constants/petTheme';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function WifiNetworkScreen() {
   const router = useRouter();
+  const { dark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   const [networks, setNetworks] = useState<WifiNetwork[] | null>(null);
   const [ssid, setSsid] = useState<string | undefined>(newDeviceDraft.get().ssid);
   const [password, setPassword] = useState(newDeviceDraft.get().password);
@@ -79,7 +83,7 @@ export default function WifiNetworkScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   list: { gap: 12, marginBottom: spacing.lg },
   network: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.surface,
@@ -89,4 +93,4 @@ const styles = StyleSheet.create({
   texts: { flex: 1 },
   ssid: { fontFamily: fonts.bold, fontSize: 13, color: colors.text },
   signal: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted, marginTop: 1 },
-});
+}, dark));
