@@ -1,21 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { newDeviceDraft } from '@/services/newDeviceDraft';
-import { newPetDraft } from '@/services/newPetDraft';
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    View,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
 } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { useProfilePhoto } from '@/hooks/useProfilephoto';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
 
 /* ============================================================
    DADOS MOCK
@@ -27,6 +30,9 @@ const user = {
   name: 'Arthur Mendonça',
   email: 'arthur@meupetseguro.app',
 };
+
+// Rota da tela de adicionar pet. Ajuste se o arquivo tiver outro nome.
+const ADD_PET_ROUTE = '/novo-pet';
 
 type RowProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -47,8 +53,10 @@ type RowProps = {
 export default function SettingsScreen() {
   const router = useRouter();
 
-  // TODO: ligar ao tema do app e às permissões de notificação
-  const [darkMode, setDarkMode] = useState(false);
+  const { dark, setDark, bg, tx } = useAppTheme();
+  const photo = useProfilePhoto();
+
+  // TODO: ligar às permissões de notificação do aparelho
   const [notifications, setNotifications] = useState(true);
 
   const layout = useLayout();
@@ -63,22 +71,19 @@ export default function SettingsScreen() {
       layout.insetTop,
       layout.insetBottom,
       layout.isWeb,
+      layout.dark,
     ],
   );
 
-  function openAccount() {
-    router.push('/minha-conta');
-  }
-
-  function addDevice() {
+  function openDevices() {
+    // abre o assistente de novo dispositivo e, ao concluir, volta para Config
     newDeviceDraft.reset();
     newDeviceDraft.set({ origin: 'config' });
     router.push('/novo-dispositivo');
   }
 
-  function addPet() {
-    newPetDraft.reset();
-    router.push('/novo-pet');
+  function openAccount() {
+    router.push('/minha-conta');
   }
 
   function signOut() {
@@ -112,7 +117,7 @@ export default function SettingsScreen() {
           <Switch
             value={switchValue}
             onValueChange={onSwitchChange}
-            trackColor={{ false: '#E4ECEB', true: colors.primary }}
+            trackColor={{ false: bg('#E4ECEB'), true: colors.primary }}
             thumbColor="#FFFFFF"
             accessibilityLabel={title}
           />
@@ -120,7 +125,7 @@ export default function SettingsScreen() {
           <Ionicons
             name="chevron-forward"
             size={s(18)}
-            color={colors.text}
+            color={tx(colors.text)}
           />
         )}
       </>
@@ -166,7 +171,11 @@ export default function SettingsScreen() {
             accessibilityLabel={`${user.name}. Abrir minha conta`}
           >
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user.initials}</Text>
+              {photo ? (
+                <Image source={{ uri: photo }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>{user.initials}</Text>
+              )}
             </View>
 
             <View style={styles.rowText}>
@@ -177,7 +186,7 @@ export default function SettingsScreen() {
             <Ionicons
               name="chevron-forward"
               size={s(18)}
-              color={colors.text}
+              color={tx(colors.text)}
             />
           </Pressable>
 
@@ -189,8 +198,8 @@ export default function SettingsScreen() {
               icon="moon-outline"
               title="Modo escuro"
               subtitle="Visual confortável à noite"
-              switchValue={darkMode}
-              onSwitchChange={setDarkMode}
+              switchValue={dark}
+              onSwitchChange={setDark}
             />
           </View>
 
@@ -211,8 +220,7 @@ export default function SettingsScreen() {
               icon="options-outline"
               title="Limites de alerta"
               subtitle="Comida, água e atividade"
-              // TODO: abrir a tela de limites de alerta
-              onPress={() => router.navigate('/alertas')}
+              onPress={() => router.push('/alertas')}
             />
           </View>
 
@@ -224,7 +232,8 @@ export default function SettingsScreen() {
               icon="wifi-outline"
               title="Dispositivos"
               subtitle="Adicionar ou gerenciar"
-              onPress={addDevice}
+              onPress={() => router.push('/novo-dispositivo/concluido')}
+
               divider
             />
 
@@ -232,7 +241,7 @@ export default function SettingsScreen() {
               icon="paw-outline"
               title="Adicionar novo pet"
               subtitle="Cadastre e conecte um dispositivo"
-              onPress={addPet}
+              onPress={() => router.push(ADD_PET_ROUTE)}
               divider
             />
 
@@ -269,10 +278,10 @@ export default function SettingsScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     scrollContent: {
       paddingHorizontal: s(24),
       paddingTop: isWeb ? s(24) : insetTop + s(14),
@@ -320,6 +329,12 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: s(12),
+      overflow: 'hidden',
+    },
+
+    avatarImage: {
+      width: '100%',
+      height: '100%',
     },
 
     avatarText: {
@@ -427,5 +442,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       textAlign: 'center',
       marginTop: s(16),
     },
-  });
+  }, dark));
 }

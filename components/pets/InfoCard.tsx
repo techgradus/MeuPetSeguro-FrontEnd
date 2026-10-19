@@ -1,7 +1,9 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -14,6 +16,9 @@ type Props = {
 };
 
 export function InfoCard({ icon, title, subtitle, caption, badge, badgeOk = true, onPress }: Props) {
+  const { dark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
+
   return (
     <TouchableOpacity activeOpacity={onPress ? 0.85 : 1} onPress={onPress} style={styles.card}>
       <View style={styles.icon}>
@@ -33,21 +38,22 @@ export function InfoCard({ icon, title, subtitle, caption, badge, badgeOk = true
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 12,
-    borderRadius: radius.lg, borderWidth: 1.5, borderColor: '#CDEEE8', backgroundColor: '#FBFFFD',
-  },
-  icon: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  texts: { flex: 1 },
-  caption: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted },
-  title: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
-  subtitle: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  badge: { backgroundColor: colors.primaryLight, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
-  badgeOff: { backgroundColor: colors.border },
-  badgeText: { fontFamily: fonts.bold, fontSize: 11, color: colors.primary },
-  badgeTextOff: { color: colors.textMuted },
-});
+const makeStyles = (dark: boolean) =>
+  StyleSheet.create(themed({
+    card: {
+      flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 12,
+      borderRadius: radius.lg, borderWidth: 1.5, borderColor: '#CDEEE8', backgroundColor: '#FBFFFD',
+    },
+    icon: {
+      width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primaryLight,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    texts: { flex: 1 },
+    caption: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted },
+    title: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
+    subtitle: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    badge: { backgroundColor: colors.primaryLight, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+    badgeOff: { backgroundColor: colors.border },
+    badgeText: { fontFamily: fonts.bold, fontSize: 11, color: colors.primary },
+    badgeTextOff: { color: colors.textMuted },
+  }, dark));

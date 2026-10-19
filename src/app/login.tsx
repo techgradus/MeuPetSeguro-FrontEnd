@@ -1,20 +1,25 @@
-import React, { useState } from 'react';
-import { useRouter } from 'expo-router';
-import { useResponsive } from '@/hooks/useResponsive';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ScreenContainer } from '@/components/ui/ScreenContainer';
-import { Logo } from '@/components/ui/Logo';
-import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
-import { validateEmail, validatePassword } from '@/utils/validators';
-import { authService, INVALID_CREDENTIALS } from '@/services/authService';
+import { Logo } from '@/components/ui/Logo';
+import { ScreenContainer } from '@/components/ui/ScreenContainer';
+import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { TextField } from '@/components/ui/TextField';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts, spacing } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { useResponsive } from '@/hooks/useResponsive';
+import { authService, INVALID_CREDENTIALS } from '@/services/authService';
+import { validateEmail, validatePassword } from '@/utils/validators';
+import { useRouter } from 'expo-router';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 
 export default function LoginScreen() {
   const router = useRouter();
   const { ms, isSmallHeight } = useResponsive();
+  const { dark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string | null; password?: string | null }>({});
@@ -87,14 +92,19 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       <Button title="Entrar" onPress={handleLogin} loading={loading} />
+
+      <View style={styles.signup}>
+        <SecondaryButton title="Cadastrar" onPress={() => router.push('/cadastro')} />
+      </View>
     </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   header: { alignItems: 'center', marginBottom: spacing.lg },
   title: { fontFamily: fonts.extrabold, fontSize: 26, color: colors.text, marginTop: 4 },
   subtitle: { fontFamily: fonts.medium, fontSize: 14, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
   forgot: { alignSelf: 'flex-end', marginBottom: spacing.lg, marginTop: -4 },
   link: { fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
-});
+  signup: { marginTop: 12 },
+}, dark));

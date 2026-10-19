@@ -3,6 +3,7 @@ import { Href, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, useLayout } from '@/hooks/useLayout';
@@ -28,13 +29,11 @@ const TABS: Tab[] = [
     route: '/home',
   },
   {
-
-  id: 'pet',
-  label: 'Meu Pet',
-  icon: 'paw-outline',
-  activeIcon: 'paw',
-  route: '/meus-pets',
-    // TODO: route: '/meu-pet',
+    id: 'pet',
+    label: 'Meu Pet',
+    icon: 'paw-outline',
+    activeIcon: 'paw',
+    route: '/meus-pets',
   },
   {
     id: 'alerts',
@@ -42,21 +41,18 @@ const TABS: Tab[] = [
     icon: 'notifications-outline',
     notification: true,
     route: '/alertas',
-    // TODO: route: '/alertas',
   },
   {
     id: 'reports',
     label: 'Relatórios',
     icon: 'analytics-outline',
     route: '/relatorios',
-    // TODO: route: '/relatorios',
   },
   {
     id: 'settings',
     label: 'Config',
     icon: 'settings-outline',
     route: '/config',
-    // TODO: route: '/config',
   },
 ];
 
@@ -68,7 +64,7 @@ export default function BottomNav({ active }: { active: TabId }) {
   const styles = useMemo(
     () => makeStyles(layout),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout.frameWidth, layout.insetBottom, layout.isWeb],
+    [layout.frameWidth, layout.insetBottom, layout.isWeb, layout.dark],
   );
 
   return (
@@ -109,8 +105,8 @@ export default function BottomNav({ active }: { active: TabId }) {
   );
 }
 
-function makeStyles({ s, insetBottom, navHeight }: Layout) {
-  return StyleSheet.create({
+function makeStyles({ dark, s, insetBottom, navHeight }: Layout) {
+  return StyleSheet.create(themed({
     bottomNavigation: {
       position: 'absolute',
       left: 0,
@@ -167,5 +163,5 @@ function makeStyles({ s, insetBottom, navHeight }: Layout) {
     bottomLabelActive: {
       color: colors.primary,
     },
-  });
+  }, dark));
 }

@@ -1,22 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ScreenContainer } from '@/components/ui/ScreenContainer';
+import { InfoCard } from '@/components/pets/InfoCard';
+import { LabeledField } from '@/components/pets/LabeledField';
+import { PetAvatar } from '@/components/pets/PetAvatar';
+import { PetSelector } from '@/components/pets/PetSelector';
+import { SelectField } from '@/components/pets/SelectField';
 import { BottomTabBar } from '@/components/ui/BottomTabBar';
-import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
-import { PetSelector } from '@/components/pets/PetSelector';
-import { PetAvatar } from '@/components/pets/PetAvatar';
-import { LabeledField } from '@/components/pets/LabeledField';
-import { SelectField } from '@/components/pets/SelectField';
-import { InfoCard } from '@/components/pets/InfoCard';
-import { useResponsive } from '@/hooks/useResponsive';
-import { petService } from '@/services/petService';
-import { newPetDraft } from '@/services/newPetDraft';
-import { newDeviceDraft } from '@/services/newDeviceDraft';
-import { Pet, PetFormValues, Species } from '@/types/pet';
+import { ScreenContainer } from '@/components/ui/ScreenContainer';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts, spacing } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { useResponsive } from '@/hooks/useResponsive';
+import { useTabNavigation } from '@/hooks/useTabNavigation';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
+import { newPetDraft } from '@/services/newPetDraft';
+import { petService } from '@/services/petService';
+import { Pet, PetFormValues, Species } from '@/types/pet';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const SPECIES: readonly Species[] = ['Cachorro', 'Gato'];
 
@@ -41,6 +43,8 @@ export default function MeusPetsScreen() {
   const router = useRouter();
   const { ms } = useResponsive();
   const goToTab = useTabNavigation();
+  const { dark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [form, setForm] = useState<PetFormValues | null>(null);
@@ -175,7 +179,7 @@ export default function MeusPetsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   headerRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: spacing.md },
   kicker: { fontFamily: fonts.semibold, fontSize: 13, color: colors.textMuted },
   title: { fontFamily: fonts.extrabold, color: colors.text },
@@ -188,4 +192,4 @@ const styles = StyleSheet.create({
   avatarBox: { alignItems: 'center', marginVertical: spacing.md },
   row: { flexDirection: 'row', gap: 12 },
   saveBox: { marginTop: spacing.sm, marginBottom: spacing.md },
-});
+}, dark));

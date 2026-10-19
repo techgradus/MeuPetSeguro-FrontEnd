@@ -5,10 +5,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PetAvatar from '@/components/PetAvatar';
 import PhoneFrame from '@/components/PhoneFrame';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Pet, PetId, petIds, pets } from '@/data/pets';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
 
 const user = { firstName: 'Beatriz', unreadAlerts: 5 };
 const devices = { connected: 3, total: 4 };
@@ -124,6 +127,8 @@ function MetricCard({
   styles: Styles;
   s: Layout['s'];
 }) {
+  const { bg } = useAppTheme();
+
   return (
     <Pressable
       style={styles.metricCard}
@@ -131,7 +136,7 @@ function MetricCard({
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${value}%. Ver detalhes`}
     >
-      <View style={[styles.metricIcon, { backgroundColor: iconBackground }]}>
+      <View style={[styles.metricIcon, { backgroundColor: bg(iconBackground) }]}>
         <Ionicons name={icon} size={s(18)} color={iconColor} />
       </View>
 
@@ -158,6 +163,7 @@ function MetricCard({
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { tx } = useAppTheme();
   const [selectedPet, setSelectedPet] = useState<PetId>('Rex');
 
   const layout = useLayout();
@@ -172,6 +178,7 @@ export default function HomeScreen() {
       layout.insetTop,
       layout.insetBottom,
       layout.isWeb,
+      layout.dark,
     ],
   );
 
@@ -210,12 +217,12 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Notificações, ${user.unreadAlerts} não lidas`}
               // TODO: navegar para a Central de alertas
-              onPress={() => router.navigate('/alertas')}
+              onPress={() => {}}
             >
               <Ionicons
                 name="notifications-outline"
                 size={s(24)}
-                color={colors.text}
+                color={tx(colors.text)}
               />
 
               {user.unreadAlerts > 0 && (
@@ -381,8 +388,11 @@ export default function HomeScreen() {
           <Pressable
             style={styles.deviceCard}
             accessibilityRole="button"
-            // TODO: navegar para Config > Dispositivos
-            onPress={() => router.navigate('/config')}
+            onPress={() => {
+              // abre o assistente de novo dispositivo
+              newDeviceDraft.reset();
+              router.push('/novo-dispositivo/concluido');
+            }}
           >
             <View style={styles.deviceIcon}>
               <Ionicons
@@ -404,8 +414,9 @@ export default function HomeScreen() {
           <Pressable
             style={styles.insightCard}
             accessibilityRole="button"
-            // TODO: navegar para Relatórios
-            onPress={() => router.navigate('/relatorios')}
+            onPress={() =>
+              router.push({ pathname: '/relatorios', params: { pet: selectedPet } })
+            }
           >
             <View style={styles.insightIcon}>
               <Ionicons name="sparkles-outline" size={s(22)} color="#FFFFFF" />
@@ -426,8 +437,8 @@ export default function HomeScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
-  return StyleSheet.create({
+function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
+  return StyleSheet.create(themed({
     scrollContent: {
       paddingHorizontal: s(24),
       paddingTop: isWeb ? s(24) : insetTop + s(14),
@@ -909,5 +920,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       color: colors.text,
       marginTop: 1,
     },
-  });
+  }, dark));
 }
