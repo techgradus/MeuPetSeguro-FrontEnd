@@ -1,54 +1,65 @@
-import { useMemo, useSyncExternalStore } from 'react';
-import { Platform } from 'react-native';
-import { colors } from '@/constants/petTheme';
-import { surfaceColor, textColor } from '@/constants/darkTheme';
+import { useSyncExternalStore } from 'react';
+
+import { mapColor } from '@/constants/darkTheme';
 
 /*
- * Tema do app (claro/escuro) — estado global simples, sem biblioteca.
- * TODO: salvar a preferência no perfil do usuário quando existir API.
+ * Estado global do modo escuro.
+ *
+ * É um store simples (sem Provider), então não precisa mexer no _layout.tsx:
+ * qualquer tela que usa `useAppTheme()` ou `useLayout()` atualiza sozinha
+ * quando o modo muda.
+ *
+ * Na web a escolha fica salva no navegador. No celular ela vale enquanto o
+ * app está aberto; para guardar de forma permanente, grave o valor com o
+ * @react-native-async-storage/async-storage dentro de `setDarkMode`.
  */
 
-const STORAGE_KEY = 'meupetseguro:dark';
+const STORAGE_KEY = 'meupet:theme';
+
+let dark = false;
 const listeners = new Set<() => void>();
 
-function readInitial(): boolean {
-  try {
-    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
-      return localStorage.getItem(STORAGE_KEY) === '1';
-    }
-  } catch {}
-  return false;
+try {
+  if (typeof localStorage !== 'undefined') {
+    dark = localStorage.getItem(STORAGE_KEY) === 'dark';
+  }
+} catch {
+  // sem acesso ao armazenamento: segue no modo claro
 }
 
-let darkMode = readInitial();
+export function setDarkMode(value: boolean) {
+  if (value === dark) return;
+  dark = value;
 
-function setDarkMode(value: boolean) {
-  if (value === darkMode) return;
-  darkMode = value;
   try {
-    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, value ? '1' : '0');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, value ? 'dark' : 'light');
     }
-  } catch {}
-  listeners.forEach((l) => l());
+  } catch {
+    // ignora
+  }
+
+  listeners.forEach((listener) => listener());
 }
 
-const subscribe = (l: () => void) => {
-  listeners.add(l);
-  return () => { listeners.delete(l); };
-};
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+const getSnapshot = () => dark;
 
 export function useAppTheme() {
-  const dark = useSyncExternalStore(subscribe, () => darkMode, () => darkMode);
+  const isDark = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  // Cores prontas para usar direto no JSX (ícones, indicadores etc.)
-  const c = useMemo(() => ({
-    text: textColor(colors.text, dark),
-    muted: textColor(colors.textMuted, dark),
-    primary: textColor(colors.primary, dark),
-    surface: surfaceColor(colors.surface, dark),
-    background: surfaceColor(colors.background, dark),
-  }), [dark]);
-
-  return { dark, c, setDark: setDarkMode, toggle: () => setDarkMode(!darkMode) };
+  return {
+    dark: isDark,
+    setDark: setDarkMode,
+    /** Converte uma cor de fundo usada direto no JSX */
+    bg: (color: string) => mapColor(color, 'bg', isDark),
+    /** Converte uma cor de texto/ícone usada direto no JSX */
+    tx: (color: string) => mapColor(color, 'text', isDark),
+  };
 }

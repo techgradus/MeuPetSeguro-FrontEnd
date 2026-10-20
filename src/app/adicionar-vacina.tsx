@@ -14,11 +14,11 @@ import {
 } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
-import { makeFieldStyles, LabeledField } from '@/components/pets/LabeledField';
+import { LabeledField } from '@/components/pets/LabeledField';
 import { SelectField } from '@/components/pets/SelectField';
 import { useAppTheme } from '@/hooks/useAppTheme';
-import { themed, textColor, surfaceColor } from '@/constants/darkTheme';
-import { colors, fonts } from '@/constants/petTheme';
+import { themed } from '@/constants/darkTheme';
+import { colors, fonts, radius } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 import { petService } from '@/services/petService';
@@ -41,18 +41,17 @@ function DateField({
   placeholder: string;
   flex?: boolean;
 }) {
-  const { dark, c } = useAppTheme();
+  const { dark, bg, tx } = useAppTheme();
   const dateStyles = useMemo(() => makeDateStyles(dark), [dark]);
-  const fieldStyles = useMemo(() => makeFieldStyles(dark), [dark]);
   return (
     <View style={[dateStyles.wrapper, flex && { flex: 1 }]}>
       <Text style={dateStyles.label}>{label}</Text>
-      <View style={[fieldStyles.box, !!error && dateStyles.boxError]}>
+      <View style={[dateStyles.box, !!error && dateStyles.boxError]}>
         <TextInput
           value={value}
           onChangeText={(t) => onChange(maskDate(t))}
           placeholder={placeholder}
-          placeholderTextColor={c.muted}
+          placeholderTextColor={tx(colors.textMuted)}
           keyboardType="number-pad"
           maxLength={10}
           style={[
@@ -60,7 +59,7 @@ function DateField({
             Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null,
           ]}
         />
-        <Ionicons name="calendar-outline" size={18} color={c.muted} />
+        <Ionicons name="calendar-outline" size={18} color={tx(colors.textMuted)} />
       </View>
       {!!error && <Text style={dateStyles.error}>{error}</Text>}
     </View>
@@ -84,7 +83,7 @@ export default function AddVaccineScreen() {
   const [saving, setSaving] = useState(false);
 
   const layout = useLayout();
-  const { dark, c } = useAppTheme();
+  const { dark, bg, tx } = useAppTheme();
   const { s } = layout;
 
   const styles = useMemo(
@@ -182,7 +181,7 @@ export default function AddVaccineScreen() {
             {/* CABEÇALHO */}
             <View style={styles.header}>
               <Pressable style={styles.backButton} onPress={goBack} accessibilityRole="button" accessibilityLabel="Voltar">
-                <Ionicons name="chevron-back" size={s(22)} color={c.text} />
+                <Ionicons name="chevron-back" size={s(22)} color={tx(colors.text)} />
               </Pressable>
               <Text style={styles.headerTitle}>{isEdit ? 'Editar vacina' : 'Adicionar vacina'}</Text>
               <View style={styles.backButtonSpacer} />
@@ -255,6 +254,10 @@ export default function AddVaccineScreen() {
 }
 
 const makeDateStyles = (dark: boolean) => StyleSheet.create(themed({
+  box: {
+    minHeight: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14,
+    borderRadius: radius.md, borderWidth: 1.5, borderColor: '#CDEEE8', backgroundColor: '#FBFFFD',
+  },
   wrapper: { marginBottom: 14 },
   label: { fontFamily: fonts.semibold, fontSize: 12, color: colors.text, marginBottom: 6 },
   input: { flex: 1, minWidth: 0, fontFamily: fonts.medium, fontSize: 14, color: colors.text, paddingVertical: 10 },

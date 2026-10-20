@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useAppTheme } from '@/hooks/useAppTheme';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius, shadow } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo } from 'react';
+import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type Props = { source?: ImageSourcePropType; size?: number; onPress?: () => void };
 
@@ -11,8 +11,9 @@ const BORDER = 6;
 
 /** Foto de perfil do pet: quadrado arredondado, borda branca e botão "+" para trocar a foto. */
 export function PetAvatar({ source, size = 150, onPress }: Props) {
-  const { dark, c } = useAppTheme();
+  const { dark } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
+
   const inner = size - BORDER * 2;
   const innerRadius = radius.xl - BORDER;
 
@@ -26,7 +27,7 @@ export function PetAvatar({ source, size = 150, onPress }: Props) {
               <Image source={source} resizeMode="cover" style={{ width: inner, height: inner }} />
             ) : (
               <View style={[styles.placeholder, { width: inner, height: inner }]}>
-                <Ionicons name="paw" size={size * 0.35} color={c.primary} />
+                <Ionicons name="paw" size={size * 0.35} color={colors.primary} />
               </View>
             )}
           </View>
@@ -40,16 +41,17 @@ export function PetAvatar({ source, size = 150, onPress }: Props) {
   );
 }
 
-const makeStyles = (dark: boolean) => StyleSheet.create(themed({
-  wrapper: { alignItems: 'center', alignSelf: 'center' },
-  frame: {
-    padding: BORDER, borderRadius: radius.xl, backgroundColor: colors.surface, ...shadow, shadowOpacity: 0.12,
-  },
-  placeholder: { backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  plus: {
-    position: 'absolute', right: -6, bottom: -6, width: 32, height: 32, borderRadius: 16,
-    backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  hint: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted, marginTop: 14 },
-}, dark));
+const makeStyles = (dark: boolean) =>
+  StyleSheet.create(themed({
+    wrapper: { alignItems: 'center', alignSelf: 'center' },
+    frame: {
+      padding: BORDER, borderRadius: radius.xl, backgroundColor: colors.surface, ...shadow, shadowOpacity: 0.12,
+    },
+    placeholder: { backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+    plus: {
+      position: 'absolute', right: -6, bottom: -6, width: 32, height: 32, borderRadius: 16,
+      backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    hint: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted, marginTop: 14 },
+  }, dark));

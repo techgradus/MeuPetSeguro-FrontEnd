@@ -1,63 +1,170 @@
 /*
- * Modo escuro.
- * As telas continuam escritas com as cores claras do design (petTheme/ui).
- * `themed(estilos, dark)` troca essas cores pelas equivalentes escuras quando
- * o modo escuro está ligado — assim não é preciso duplicar nenhum estilo.
+ * Tema escuro.
+ *
+ * As telas foram desenhadas com cores do tema claro. Em vez de reescrever
+ * cada cor, `themed()` converte automaticamente as cores dos estilos quando
+ * o modo escuro está ligado:
+ *
+ *  - fundos claros (branco, cinzas e tons pastéis) viram fundos escuros;
+ *  - bordas claras viram bordas escuras, um pouco mais claras que o fundo;
+ *  - textos escuros e neutros viram textos claros;
+ *  - cores vivas (verde do tema, laranja, azul, vermelho) ficam como estão.
+ *
+ * Para mexer no resultado, ajuste os números em `mapColor` abaixo.
  */
 
-const norm = (v: string) => v.trim().toUpperCase();
+export type ColorRole = 'bg' | 'text' | 'border';
 
-/** Fundos e bordas: cor clara -> cor escura. */
-const SURFACE: Record<string, string> = {
-  '#F3FAF9': '#0E1A1A', '#F6FBFB': '#0E1A1A', '#E9F3F2': '#081212',
-  '#FFFFFF': '#172524', '#FBFFFD': '#172524', '#FDFEFB': '#132120',
-  '#C8F0EC': '#1F3B38', '#C6F1EC': '#1F3B38',
-  '#D5E6E4': '#2B3E3C', '#D2E8E3': '#2B3E3C', '#CDEEE8': '#2B3E3C',
-  '#BFEBD6': '#2B3E3C', '#E3ECEA': '#2B3E3C', '#B5BFBD': '#2B3E3C',
-  '#E4ECEB': '#2B3E3C', '#E1E1E1': '#2B3E3C',
-  '#FDECEC': '#3A2022', '#FFE1DA': '#3A2022', '#F5C2B5': '#5A2F2F',
-  '#E3F6EC': '#17332A', '#F6E0B8': '#3B3118', '#FFF0D5': '#3B3118',
-};
+type Hsl = { h: number; s: number; l: number; chroma: number };
 
-/** Textos e ícones: cor clara -> cor escura. */
-const TEXT: Record<string, string> = {
-  '#0F2B2B': '#EAF4F3', '#111111': '#EAF4F3',
-  '#5C7775': '#9DB5B2', '#6F8481': '#9DB5B2', '#777777': '#9DB5B2',
-  '#00857C': '#3CC4B8', '#006B64': '#3CC4B8',
-  '#9A6B00': '#E3B341', '#E5484D': '#FF7478',
-};
+function parseHex(value: string): [number, number, number] | null {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value.trim());
+  if (!m) return null;
 
-const TEXT_KEYS = new Set(['color', 'tintColor']);
-const SURFACE_KEYS = new Set([
-  'backgroundColor', 'borderColor', 'borderTopColor', 'borderBottomColor',
-  'borderLeftColor', 'borderRightColor',
-]);
-
-// Fundos "de destaque" (botões, cartão verde) não devem trocar de cor.
-const KEEP_SURFACE = new Set(['#00857C', '#006B64']);
-
-export function themed<T extends Record<string, any>>(styles: T, dark: boolean): T {
-  if (!dark) return styles;
-  const out: Record<string, any> = {};
-  for (const name of Object.keys(styles)) {
-    const style = styles[name];
-    if (!style || typeof style !== 'object') { out[name] = style; continue; }
-    const next: Record<string, any> = { ...style };
-    for (const key of Object.keys(next)) {
-      const value = next[key];
-      if (typeof value !== 'string') continue;
-      const hex = norm(value);
-      if (TEXT_KEYS.has(key) && TEXT[hex]) next[key] = TEXT[hex];
-      else if (SURFACE_KEYS.has(key) && !KEEP_SURFACE.has(hex) && SURFACE[hex]) next[key] = SURFACE[hex];
-    }
-    out[name] = next;
+  let hex = m[1];
+  if (hex.length === 3) {
+    hex = hex
+      .split('')
+      .map((c) => c + c)
+      .join('');
   }
-  return out as T;
+
+  return [
+    parseInt(hex.slice(0, 2), 16) / 255,
+    parseInt(hex.slice(2, 4), 16) / 255,
+    parseInt(hex.slice(4, 6), 16) / 255,
+  ];
 }
 
-/** Cor de texto/ícone para uso direto no JSX (ex.: <Ionicons color={c.text} />). */
-export const textColor = (value: string, dark: boolean) => (dark ? TEXT[norm(value)] ?? value : value);
+function toHsl([r, g, b]: [number, number, number]): Hsl {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const chroma = max - min;
+  const l = (max + min) / 2;
 
-/** Cor de fundo para uso direto no JSX. */
-export const surfaceColor = (value: string, dark: boolean) =>
-  dark && !KEEP_SURFACE.has(norm(value)) ? SURFACE[norm(value)] ?? value : value;
+  let h = 0;
+  if (chroma !== 0) {
+    if (max === r) h = ((g - b) / chroma) % 6;
+    else if (max === g) h = (b - r) / chroma + 2;
+    else h = (r - g) / chroma + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+
+  const s = chroma === 0 ? 0 : chroma / (1 - Math.abs(2 * l - 1));
+
+  return { h, s, l, chroma };
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+
+  const to = (v: number) =>
+    Math.round((v + m) * 255)
+      .toString(16)
+      .padStart(2, '0');
+
+  return `#${to(r)}${to(g)}${to(b)}`.toUpperCase();
+}
+
+const clamp = (v: number, min: number, max: number) =>
+  Math.min(Math.max(v, min), max);
+
+/** Converte uma cor do tema claro para o tema escuro. */
+export function mapColor(value: string, role: ColorRole, dark: boolean) {
+  if (!dark || typeof value !== 'string') return value;
+
+  const rgb = parseHex(value);
+  if (!rgb) return value; // rgba(), 'transparent' etc. ficam como estão
+
+  const { h, s, l, chroma } = toHsl(rgb);
+
+  /* TEXTOS E ÍCONES */
+  if (role === 'text') {
+    // só escuros e pouco coloridos viram claros; o verde do tema e as cores
+    // vivas continuam iguais, e os claros (texto sobre o card verde) também
+    if (l < 0.6 && s < 0.5) {
+      return hslToHex(h, Math.min(s, 0.2), clamp(1 - l, 0.62, 0.95));
+    }
+    return value;
+  }
+
+  /* BORDAS */
+  if (role === 'border') {
+    if (l < 0.7) return value;
+
+    if (chroma >= 0.25) return hslToHex(h, 0.4, 0.38); // destaque (atenção)
+    if (chroma >= 0.15) return hslToHex(h, 0.3, 0.3); // verde-água de cards
+    return hslToHex(h, 0.12, 0.24); // borda neutra
+  }
+
+  /* FUNDOS */
+  if (l < 0.8) return value; // cores vivas e escuras ficam como estão
+
+  // branco puro e quase branco: cards
+  if (l >= 0.985 && chroma < 0.03) return '#1A2323';
+
+  // tons pastéis com cor (chips, ícones, avisos): escuros com o mesmo tom
+  if (chroma >= 0.06) return hslToHex(h, 0.3, 0.2);
+
+  // neutros claros: fundo da tela e controles
+  return hslToHex(h, 0.1, clamp(0.1 + (0.975 - l) * 1.2, 0.08, 0.22));
+}
+
+const TEXT_PROPS = new Set(['color', 'tintColor', 'textDecorationColor']);
+const BG_PROPS = new Set(['backgroundColor']);
+const BORDER_PROPS = new Set([
+  'borderColor',
+  'borderTopColor',
+  'borderBottomColor',
+  'borderLeftColor',
+  'borderRightColor',
+]);
+
+/**
+ * Aplica o tema escuro a um objeto de estilos antes do StyleSheet.create.
+ * No modo claro devolve os estilos sem alterar nada.
+ */
+export function themed<T extends Record<string, any>>(
+  styles: T,
+  dark: boolean,
+): T {
+  if (!dark) return styles;
+
+  const out: Record<string, any> = {};
+
+  for (const [name, style] of Object.entries(styles)) {
+    const next: Record<string, any> = {};
+
+    for (const [prop, val] of Object.entries(style as object)) {
+      if (typeof val !== 'string') {
+        next[prop] = val;
+      } else if (TEXT_PROPS.has(prop)) {
+        next[prop] = mapColor(val, 'text', true);
+      } else if (BG_PROPS.has(prop)) {
+        next[prop] = mapColor(val, 'bg', true);
+      } else if (BORDER_PROPS.has(prop)) {
+        next[prop] = mapColor(val, 'border', true);
+      } else {
+        next[prop] = val;
+      }
+    }
+
+    out[name] = next;
+  }
+
+  return out as T;
+}

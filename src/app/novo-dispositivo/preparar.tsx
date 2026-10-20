@@ -1,15 +1,19 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceFlowLayout';
 import { Button } from '@/components/ui/Button';
+import { themed } from '@/constants/darkTheme';
 import { getDeviceType } from '@/constants/deviceTypes';
-import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function PrepareDeviceScreen() {
   const router = useRouter();
+  const { dark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   const info = getDeviceType(newDeviceDraft.get().type ?? 'colar');
 
   return (
@@ -48,7 +52,7 @@ export default function PrepareDeviceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   illustration: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: spacing.lg },
   powerTile: {
     width: 76, height: 76, borderRadius: radius.lg, backgroundColor: colors.primaryLight,
@@ -66,4 +70,4 @@ const styles = StyleSheet.create({
   infoHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   infoTitle: { flex: 1, fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
   infoText: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 17, color: colors.textMuted },
-});
+}, dark));

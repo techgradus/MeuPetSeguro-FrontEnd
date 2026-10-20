@@ -5,10 +5,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PetAvatar from '@/components/PetAvatar';
 import PhoneFrame from '@/components/PhoneFrame';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { AlertKind, alerts as initialAlerts, PetAlert } from '@/data/alerts';
 import { PetId, petIds, pets } from '@/data/pets';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
 /* ============================================================
@@ -81,6 +83,7 @@ type ReadFilter = 'all' | 'unread';
 ============================================================ */
 
 export default function AlertsScreen() {
+  const { bg } = useAppTheme();
   const [items, setItems] = useState<PetAlert[]>(initialAlerts);
   const [petFilter, setPetFilter] = useState<PetFilter>('all');
   const [readFilter, setReadFilter] = useState<ReadFilter>('all');
@@ -97,6 +100,7 @@ export default function AlertsScreen() {
       layout.insetTop,
       layout.insetBottom,
       layout.isWeb,
+      layout.dark,
     ],
   );
 
@@ -300,7 +304,7 @@ export default function AlertsScreen() {
                   ]}
                 >
                   <View
-                    style={[styles.iconBox, { backgroundColor: kind.background }]}
+                    style={[styles.iconBox, { backgroundColor: bg(kind.background) }]}
                   >
                     {kind.icon(s(22), kind.color)}
                   </View>
@@ -338,8 +342,8 @@ export default function AlertsScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
-  return StyleSheet.create({
+function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
+  return StyleSheet.create(themed({
     scrollContent: {
       paddingHorizontal: s(24),
       paddingTop: isWeb ? s(24) : insetTop + s(14),
@@ -583,5 +587,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       marginTop: s(4),
       textAlign: 'center',
     },
-  });
+  }, dark));
 }

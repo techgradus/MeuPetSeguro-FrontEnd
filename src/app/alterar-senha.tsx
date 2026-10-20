@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 import { authService, INVALID_CURRENT_PASSWORD } from '@/services/authService';
 
@@ -57,6 +59,7 @@ const FIELDS: { key: FieldKey; label: string; placeholder: string }[] = [
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
+  const { tx } = useAppTheme();
 
   const [values, setValues] = useState<Record<FieldKey, string>>({ current: '', next: '', confirm: '' });
   const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
@@ -73,7 +76,7 @@ export default function ChangePasswordScreen() {
   const styles = useMemo(
     () => makeStyles(layout),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout.frameWidth, layout.frameHeight, layout.insetTop, layout.insetBottom, layout.isWeb],
+    [layout.frameWidth, layout.frameHeight, layout.insetTop, layout.insetBottom, layout.isWeb, layout.dark],
   );
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -134,7 +137,7 @@ export default function ChangePasswordScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Voltar"
               >
-                <Ionicons name="chevron-back" size={s(22)} color={colors.text} />
+                <Ionicons name="chevron-back" size={s(22)} color={tx(colors.text)} />
               </Pressable>
 
               <Text style={styles.headerTitle}>Alterar senha</Text>
@@ -188,7 +191,7 @@ export default function ChangePasswordScreen() {
                         <Ionicons
                           name={show ? 'eye-outline' : 'eye-off-outline'}
                           size={s(20)}
-                          color="#6F8481"
+                          color={tx('#6F8481')}
                         />
                       </Pressable>
                     </View>
@@ -238,10 +241,10 @@ export default function ChangePasswordScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     flex: { flex: 1 },
 
     scrollContent: {
@@ -359,6 +362,6 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       marginTop: s(10),
     },
 
-    savedText: { fontFamily: fonts.bold, fontSize: s(12), color: colors.primary },
-  });
+    savedText: { fontFamily: fonts.bold, fontSize: s(12), color: colors.primary }, 
+  }, dark));
 }

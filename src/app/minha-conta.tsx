@@ -1,21 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Stack, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { setProfilePhoto, useProfilePhoto } from '@/hooks/useProfilephoto';
 
 /* ============================================================
    DADOS MOCK
@@ -56,6 +62,8 @@ function formatPhone(value: string) {
 
 export default function AccountScreen() {
   const router = useRouter();
+  const { tx } = useAppTheme();
+  const photo = useProfilePhoto();
 
   const [form, setForm] = useState(initialUser);
   const [focused, setFocused] = useState<FieldKey | null>(null);
@@ -73,6 +81,7 @@ export default function AccountScreen() {
       layout.insetTop,
       layout.insetBottom,
       layout.isWeb,
+      layout.dark,
     ],
   );
 
@@ -91,6 +100,74 @@ export default function AccountScreen() {
     } else {
       router.replace('/config');
     }
+  }
+
+  /* ---------- FOTO DE PERFIL ---------- */
+
+  async function pickPhoto(source: 'camera' | 'gallery') {
+    try {
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(
+            'Permissão necessária',
+            'Permita o acesso à câmera nas configurações do aparelho.',
+          );
+          return;
+        }
+      } else if (Platform.OS !== 'web') {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(
+            'Permissão necessária',
+            'Permita o acesso às fotos nas configurações do aparelho.',
+          );
+          return;
+        }
+      }
+
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      };
+
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync(options)
+          : await ImagePicker.launchImageLibraryAsync(options);
+
+      if (!result.canceled && result.assets[0]?.uri) {
+        // TODO: enviar a foto para a API
+        setProfilePhoto(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert('Não foi possível carregar a foto', 'Tente novamente.');
+    }
+  }
+
+  function changePhoto() {
+    // No navegador abre direto o seletor de arquivos
+    if (Platform.OS === 'web') {
+      pickPhoto('gallery');
+      return;
+    }
+
+    Alert.alert('Foto de perfil', 'Escolha uma opção', [
+      { text: 'Tirar foto', onPress: () => pickPhoto('camera') },
+      { text: 'Escolher da galeria', onPress: () => pickPhoto('gallery') },
+      ...(photo
+        ? [
+            {
+              text: 'Remover foto',
+              style: 'destructive' as const,
+              onPress: () => setProfilePhoto(null),
+            },
+          ]
+        : []),
+      { text: 'Cancelar', style: 'cancel' as const },
+    ]);
   }
 
   function save() {
@@ -163,7 +240,7 @@ export default function AccountScreen() {
                 <Ionicons
                   name="chevron-back"
                   size={s(22)}
-                  color={colors.text}
+                  color={tx(colors.text)}
                 />
               </Pressable>
 
@@ -176,17 +253,24 @@ export default function AccountScreen() {
             <View style={styles.profileCard}>
               <View>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {getInitials(form.name)}
-                  </Text>
+                  {photo ? (
+                    <Image
+                      source={{ uri: photo }}
+                      style={styles.avatarImage}
+                      accessibilityLabel="Foto de perfil"
+                    />
+                  ) : (
+                    <Text style={styles.avatarText}>
+                      {getInitials(form.name)}
+                    </Text>
+                  )}
                 </View>
 
                 <Pressable
                   style={styles.cameraBadge}
                   accessibilityRole="button"
                   accessibilityLabel="Trocar foto de perfil"
-                  // TODO: abrir câmera/galeria (expo-image-picker)
-                  onPress={() => {}}
+                  onPress={changePhoto}
                 >
                   <Ionicons name="camera-outline" size={s(14)} color="#FFFFFF" />
                 </Pressable>
@@ -202,8 +286,7 @@ export default function AccountScreen() {
 
                 <Pressable
                   accessibilityRole="button"
-                  // TODO: abrir câmera/galeria (expo-image-picker)
-                  onPress={() => {}}
+                  onPress={changePhoto}
                   hitSlop={8}
                 >
                   <Text style={styles.changePhoto}>Trocar foto de perfil</Text>
@@ -269,6 +352,7 @@ export default function AccountScreen() {
               style={styles.passwordCard}
               accessibilityRole="button"
               accessibilityLabel="Alterar senha. Atualize sua senha de acesso"
+              // TODO: abrir a tela de alterar senha
               onPress={() => router.push('/alterar-senha')}
             >
               <View style={styles.passwordIcon}>
@@ -289,7 +373,7 @@ export default function AccountScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={s(18)}
-                color={colors.text}
+                color={tx(colors.text)}
               />
             </Pressable>
 
@@ -338,10 +422,10 @@ export default function AccountScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     flex: {
       flex: 1,
     },
@@ -410,6 +494,12 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
+    },
+
+    avatarImage: {
+      width: '100%',
+      height: '100%',
     },
 
     avatarText: {
@@ -598,5 +688,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       fontSize: s(13),
       color: ui.signOut,
     },
-  });
+  }, dark));
 }

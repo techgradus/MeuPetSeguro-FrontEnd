@@ -5,7 +5,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 
 import PhoneFrame from '@/components/PhoneFrame';
 import { useAppTheme } from '@/hooks/useAppTheme';
-import { themed, textColor, surfaceColor } from '@/constants/darkTheme';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
@@ -33,7 +33,7 @@ export default function VaccineDetailScreen() {
   const [deleting, setDeleting] = useState(false);
 
   const layout = useLayout();
-  const { dark, c } = useAppTheme();
+  const { dark, bg, tx } = useAppTheme();
   const { s } = layout;
 
   const styles = useMemo(
@@ -103,14 +103,14 @@ export default function VaccineDetailScreen() {
           {/* CABEÇALHO */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={goBack} accessibilityRole="button" accessibilityLabel="Voltar">
-              <Ionicons name="chevron-back" size={s(22)} color={c.text} />
+              <Ionicons name="chevron-back" size={s(22)} color={tx(colors.text)} />
             </Pressable>
             <Text style={styles.headerTitle}>Detalhe da vacina</Text>
             <View style={styles.backButtonSpacer} />
           </View>
 
           {loading ? (
-            <ActivityIndicator color={c.primary} style={{ marginTop: s(40) }} />
+            <ActivityIndicator color={colors.primary} style={{ marginTop: s(40) }} />
           ) : !vaccine ? (
             <View style={styles.notFound}>
               <Text style={styles.notFoundText}>Esta vacina não foi encontrada.</Text>
@@ -123,12 +123,12 @@ export default function VaccineDetailScreen() {
               {/* RESUMO */}
               <View style={styles.heroCard}>
                 <View style={styles.heroIcon}>
-                  <MaterialCommunityIcons name="needle" size={s(26)} color={c.primary} />
+                  <MaterialCommunityIcons name="needle" size={s(26)} color={colors.primary} />
                 </View>
                 <Text style={styles.heroPet}>Vacina de {petName || 'seu pet'}</Text>
                 <Text style={styles.heroName}>{vaccine.name}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: surfaceColor(STATUS_STYLE[vaccine.status].bg, dark) }]}>
-                  <Text style={[styles.statusText, { color: textColor(STATUS_STYLE[vaccine.status].fg, dark) }]}>{vaccine.status}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: bg(STATUS_STYLE[vaccine.status].bg) }]}>
+                  <Text style={[styles.statusText, { color: tx(STATUS_STYLE[vaccine.status].fg) }]}>{vaccine.status}</Text>
                 </View>
               </View>
 
@@ -137,7 +137,7 @@ export default function VaccineDetailScreen() {
                 {rows.map((row, index) => (
                   <View key={row.label} style={[styles.infoRow, index > 0 && styles.infoDivider]}>
                     <View style={styles.infoIcon}>
-                      <Ionicons name={row.icon} size={s(16)} color={c.primary} />
+                      <Ionicons name={row.icon} size={s(16)} color={colors.primary} />
                     </View>
                     <View style={styles.infoTexts}>
                       <Text style={styles.infoLabel}>{row.label}</Text>

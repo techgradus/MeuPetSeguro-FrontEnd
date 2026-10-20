@@ -4,9 +4,11 @@ import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { isPetId, PetId, pets } from '@/data/pets';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
 /* ============================================================
@@ -200,6 +202,7 @@ function ScoreRing({
 
 export default function ReportsScreen() {
   const router = useRouter();
+  const { bg } = useAppTheme();
   const { pet: petParam } = useLocalSearchParams<{ pet?: string }>();
 
   // Recebe da Home: /relatorios?pet=Mia. Sem parâmetro, usa o Rex.
@@ -219,6 +222,7 @@ export default function ReportsScreen() {
       layout.insetTop,
       layout.insetBottom,
       layout.isWeb,
+      layout.dark,
     ],
   );
 
@@ -367,7 +371,7 @@ export default function ReportsScreen() {
                     style={[
                       styles.insightIcon,
                       {
-                        backgroundColor: isActivity ? ui.tealSoft : '#FFE9CC',
+                        backgroundColor: bg(isActivity ? ui.tealSoft : '#FFE9CC'),
                       },
                     ]}
                   >
@@ -442,10 +446,10 @@ export default function ReportsScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     scrollContent: {
       paddingHorizontal: s(24),
       paddingTop: isWeb ? s(24) : insetTop + s(14),
@@ -719,5 +723,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       fontSize: s(10),
       color: '#6F8481',
     },
-  });
+  }, dark));
 }

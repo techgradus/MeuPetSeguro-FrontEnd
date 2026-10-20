@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useAppTheme } from '@/hooks/useAppTheme';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export type TabRoute = 'home' | 'meus-pets' | 'alertas' | 'relatorios' | 'config';
 
@@ -24,8 +24,9 @@ const tabs: { route: TabRoute; label: string; icon: Icon; activeIcon: Icon; noti
 ];
 
 export function BottomTabBar({ active, onPress }: Props) {
-  const { dark, c } = useAppTheme();
+  const { dark, tx } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
+
   return (
     <View style={styles.bar}>
       {tabs.map((tab) => {
@@ -42,7 +43,7 @@ export function BottomTabBar({ active, onPress }: Props) {
               <Ionicons
                 name={selected ? tab.activeIcon : tab.icon}
                 size={24}
-                color={selected ? colors.primary : '#7E8C8A'}
+                color={selected ? colors.primary : tx('#7E8C8A')}
               />
               {tab.notification && <View style={styles.dot} />}
             </View>
@@ -54,24 +55,25 @@ export function BottomTabBar({ active, onPress }: Props) {
   );
 }
 
-const makeStyles = (dark: boolean) => StyleSheet.create(themed({
-  bar: {
-    height: 76,
-    backgroundColor: '#FDFEFB',
-    borderTopWidth: 1,
-    borderTopColor: '#B5BFBD',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 4,
-  },
-  item: { width: 68, height: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
-  itemActive: { backgroundColor: '#C6F1EC' },
-  iconBox: { position: 'relative', height: 26, justifyContent: 'center' },
-  dot: {
-    position: 'absolute', right: -2, top: 1, width: 7, height: 7, borderRadius: 4,
-    backgroundColor: '#7E8C8A',
-  },
-  label: { fontFamily: fonts.bold, fontSize: 11, color: '#7E8C8A', marginTop: 2 },
-  labelActive: { color: colors.primary },
-}, dark));
+const makeStyles = (dark: boolean) =>
+  StyleSheet.create(themed({
+    bar: {
+      height: 76,
+      backgroundColor: '#FDFEFB',
+      borderTopWidth: 1,
+      borderTopColor: '#B5BFBD',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      paddingHorizontal: 4,
+    },
+    item: { width: 68, height: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
+    itemActive: { backgroundColor: '#C6F1EC' },
+    iconBox: { position: 'relative', height: 26, justifyContent: 'center' },
+    dot: {
+      position: 'absolute', right: -2, top: 1, width: 7, height: 7, borderRadius: 4,
+      backgroundColor: '#7E8C8A',
+    },
+    label: { fontFamily: fonts.bold, fontSize: 11, color: '#7E8C8A', marginTop: 2 },
+    labelActive: { color: colors.primary },
+  }, dark));

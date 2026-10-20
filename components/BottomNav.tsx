@@ -3,8 +3,7 @@ import { Href, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useAppTheme } from '@/hooks/useAppTheme';
-import { themed, textColor, surfaceColor } from '@/constants/darkTheme';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, useLayout } from '@/hooks/useLayout';
@@ -30,13 +29,11 @@ const TABS: Tab[] = [
     route: '/home',
   },
   {
-
-  id: 'pet',
-  label: 'Meu Pet',
-  icon: 'paw-outline',
-  activeIcon: 'paw',
-  route: '/meus-pets',
-    // TODO: route: '/meu-pet',
+    id: 'pet',
+    label: 'Meu Pet',
+    icon: 'paw-outline',
+    activeIcon: 'paw',
+    route: '/meus-pets',
   },
   {
     id: 'alerts',
@@ -44,34 +41,30 @@ const TABS: Tab[] = [
     icon: 'notifications-outline',
     notification: true,
     route: '/alertas',
-    // TODO: route: '/alertas',
   },
   {
     id: 'reports',
     label: 'Relatórios',
     icon: 'analytics-outline',
     route: '/relatorios',
-    // TODO: route: '/relatorios',
   },
   {
     id: 'settings',
     label: 'Config',
     icon: 'settings-outline',
     route: '/config',
-    // TODO: route: '/config',
   },
 ];
 
 export default function BottomNav({ active }: { active: TabId }) {
   const router = useRouter();
   const layout = useLayout();
-  const { dark, c } = useAppTheme();
   const { s } = layout;
 
   const styles = useMemo(
-    () => makeStyles(layout, dark),
+    () => makeStyles(layout),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout.frameWidth, layout.insetBottom, layout.isWeb, dark],
+    [layout.frameWidth, layout.insetBottom, layout.isWeb, layout.dark],
   );
 
   return (
@@ -93,7 +86,7 @@ export default function BottomNav({ active }: { active: TabId }) {
               <Ionicons
                 name={isActive && tab.activeIcon ? tab.activeIcon : tab.icon}
                 size={s(24)}
-                color={isActive ? c.primary : '#7E8C8A'}
+                color={isActive ? colors.primary : '#7E8C8A'}
               />
 
               {tab.notification && <View style={styles.bottomNotification} />}
@@ -112,7 +105,7 @@ export default function BottomNav({ active }: { active: TabId }) {
   );
 }
 
-function makeStyles({ s, insetBottom, navHeight }: Layout, dark: boolean) {
+function makeStyles({ dark, s, insetBottom, navHeight }: Layout) {
   return StyleSheet.create(themed({
     bottomNavigation: {
       position: 'absolute',
