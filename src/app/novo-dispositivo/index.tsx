@@ -3,20 +3,47 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceFlowLayout';
+import { PetSelector } from '@/components/pets/PetSelector';
 import { Button } from '@/components/ui/Button';
 import { DEVICE_TYPES, DeviceType } from '@/constants/deviceTypes';
+import { usePets } from '@/hooks/usePets';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
+import { newPetDraft } from '@/services/newPetDraft';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 
 export default function DeviceTypeScreen() {
   const router = useRouter();
   const [type, setType] = useState<DeviceType | undefined>(newDeviceDraft.get().type);
 
+  const { pets, loading } = usePets();
+  const [petId, setPetId] = useState<string | undefined>(newDeviceDraft.get().petId);
+  const selectedPetId = petId ?? (pets.length === 1 ? pets[0].id : undefined);
+  const selectedPet = pets.find((p) => p.id === selectedPetId);
+  const noPets = !loading && pets.length === 0;
+
   const next = () => {
-    if (!type) return;
-    newDeviceDraft.set({ type });
+    if (!type || !selectedPetId) return;
+    newDeviceDraft.set({ type, petId: selectedPetId });
     router.push('/novo-dispositivo/preparar');
   };
+
+  const addPet = () => {
+    newPetDraft.reset();
+    router.push('/novo-pet');
+  };
+
+  if (noPets) {
+    return (
+      <DeviceFlowLayout step={1} onBack={() => router.back()}>
+        <DeviceStepHeader
+          kicker="Antes de começar"
+          title="Cadastre um pet primeiro"
+          subtitle="O dispositivo fica vinculado a um pet. Cadastre o seu para continuar."
+        />
+        <Button title="Cadastrar pet" onPress={addPet} />
+      </DeviceFlowLayout>
+    );
+  }
 
   return (
     <DeviceFlowLayout step={1} onBack={() => router.back()}>
@@ -25,6 +52,15 @@ export default function DeviceTypeScreen() {
         title="Qual dispositivo você quer conectar?"
         subtitle="Selecione uma opção para ver as instruções certas."
       />
+
+      {pets.length > 1 ? (
+        <View style={styles.petPicker}>
+          <Text style={styles.petLabel}>Para qual pet?</Text>
+          <PetSelector pets={pets} selectedId={selectedPetId ?? ''} onSelect={setPetId} />
+        </View>
+      ) : (
+        !!selectedPet && <Text style={styles.petLabel}>Dispositivo para {selectedPet.name}</Text>
+      )}
 
       <View style={styles.list}>
         {DEVICE_TYPES.map((item) => {
@@ -53,12 +89,14 @@ export default function DeviceTypeScreen() {
         })}
       </View>
 
-      <Button title="Continuar" onPress={next} disabled={!type} />
+      <Button title="Continuar" onPress={next} disabled={!type || !selectedPetId} />
     </DeviceFlowLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  petPicker: { marginBottom: spacing.md },
+  petLabel: { fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted, marginBottom: spacing.sm },
   list: { gap: 12, marginBottom: spacing.lg },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.surface,

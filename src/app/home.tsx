@@ -9,13 +9,14 @@ import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { EmptyPetsNotice } from '@/components/pets/EmptyPetsNotice';
 import type { Pet } from '@/data/pets';
+import { useAlerts } from '@/hooks/useAlerts';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardPets } from '@/hooks/useDashboardPets';
 import { newPetDraft } from '@/services/newPetDraft';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
-const alertsSummary = { unreadAlerts: 5 }; 
-const devices = { connected: 3, total: 4 };
+ 
+
 
 // 7 barras; a 6ª é o pico do período (destacada no design)
 const activityBars = [22, 34, 12, 41, 29, 48, 38];
@@ -159,7 +160,9 @@ function MetricCard({
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { pets, loading, error, reload } = useDashboardPets();
+  const { pets, devices, loading, error, reload } = useDashboardPets();
+  const { unreadCount: unreadAlerts } = useAlerts();
+  const connectedDevices = devices.filter((d) => d.online).length;
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
 
   const layout = useLayout();
@@ -225,7 +228,7 @@ export default function HomeScreen() {
             <Pressable
               style={styles.notificationButton}
               accessibilityRole="button"
-              accessibilityLabel={`Notificações, ${alertsSummary.unreadAlerts} não lidas`}
+              accessibilityLabel={`Notificações, ${unreadAlerts} não lidas`}
               onPress={() => router.navigate('/alertas')}
             >
               <Ionicons
@@ -234,10 +237,10 @@ export default function HomeScreen() {
                 color={colors.text}
               />
 
-              {alertsSummary.unreadAlerts > 0 && (
+              {unreadAlerts > 0 && (
                 <View style={styles.notificationBadge}>
                   <Text style={styles.notificationNumber}>
-                    {alertsSummary.unreadAlerts}
+                    {unreadAlerts}
                   </Text>
                 </View>
               )}
@@ -411,7 +414,9 @@ export default function HomeScreen() {
             <View style={styles.deviceContent}>
               <Text style={styles.deviceTitle}>Dispositivos</Text>
               <Text style={styles.deviceSubtitle}>
-                {devices.connected} de {devices.total} conectados
+                {devices.length === 0
+                  ? 'Nenhum dispositivo vinculado'
+                  : `${connectedDevices} de ${devices.length} conectados`}
               </Text>
             </View>
           </Pressable>

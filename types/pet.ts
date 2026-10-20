@@ -1,4 +1,5 @@
 import { ImageSourcePropType } from 'react-native';
+import type { PetDevice } from '@/types/device';
 
 export type Species = 'Cachorro' | 'Gato';
 
@@ -12,7 +13,7 @@ export type Pet = {
   notes?: string;
   photo?: ImageSourcePropType;
   vaccines: { upToDate: number; pending: number };
-  device?: { name: string; linked: boolean };
+  devices: PetDevice[];
 };
 
 export type PetFormValues = Pick<Pet, 'name' | 'species' | 'breed' | 'age' | 'weight'>;

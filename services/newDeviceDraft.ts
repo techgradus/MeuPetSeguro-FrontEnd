@@ -7,14 +7,18 @@ import { DeviceType } from '@/constants/deviceTypes';
 export type DeviceFlowOrigin = 'meus-pets' | 'config';
 
 export type NewDeviceDraft = {
+  petId?: string;
   type?: DeviceType;
+  deviceCode: string;
   ssid?: string;
   password: string;
   /** Tela que abriu o assistente (define a aba ativa e para onde voltar ao concluir). */
   origin?: DeviceFlowOrigin;
 };
 
-let draft: NewDeviceDraft = { password: '' };
+const EMPTY: NewDeviceDraft = { password: '', deviceCode: '' };
+
+let draft: NewDeviceDraft = { ...EMPTY };
 
 export const newDeviceDraft = {
   get: (): NewDeviceDraft => draft,
@@ -22,6 +26,6 @@ export const newDeviceDraft = {
     draft = { ...draft, ...partial };
   },
   reset: () => {
-    draft = { password: '' };
+    draft = { ...EMPTY };
   },
 };

@@ -12,14 +12,19 @@ import { PetAvatar } from '@/components/pets/PetAvatar';
 import { LabeledField } from '@/components/pets/LabeledField';
 import { SelectField } from '@/components/pets/SelectField';
 import { InfoCard } from '@/components/pets/InfoCard';
+import { PetDeviceList } from '@/components/devices/PetDeviceList';
+import { getDeviceType } from '@/constants/deviceTypes';
 import { EmptyPetsNotice } from '@/components/pets/EmptyPetsNotice';
 import { useResponsive } from '@/hooks/useResponsive';
 import { usePets } from '@/hooks/usePets';
 import { errorMessage } from '@/services/api';
+import { deviceService } from '@/services/deviceService';
 import { petService } from '@/services/petService';
 import { newPetDraft } from '@/services/newPetDraft';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
+import type { PetDevice } from '@/types/device';
 import { PetFormValues, Species } from '@/types/pet';
+import { confirmAction, notify } from '@/utils/dialogs';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 
 const SPECIES: readonly Species[] = ['Cachorro', 'Gato'];
@@ -114,12 +119,30 @@ export default function MeusPetsScreen() {
       await petService.updatePhoto(selected.id, result.assets[0].uri);
       await reload();
     } catch (e) {
-      Alert.alert('Não foi possível trocar a foto', errorMessage(e, 'Tente novamente em instantes.'));
+      notify('Não foi possível trocar a foto', errorMessage(e, 'Tente novamente em instantes.'));
     }
   };
 
   const comingSoon = (title: string) => () =>
     Alert.alert(title, 'Esta função será integrada nas próximas etapas.');
+
+  const removeDevice = (device: PetDevice) => {
+    if (!selected) return;
+    const label = getDeviceType(device.type).label;
+    confirmAction({
+      title: 'Remover dispositivo',
+      message: `Desvincular ${label} (${device.code}) de ${selected.name}?`,
+      confirmLabel: 'Remover',
+      onConfirm: async () => {
+        try {
+          await deviceService.remove(selected.id, device.id);
+          await reload();
+        } catch (e) {
+          notify('Não foi possível remover', errorMessage(e, 'Tente novamente em instantes.'));
+        }
+      },
+    });
+  };
 
   const addNewPet = () => {
     newPetDraft.reset();
@@ -128,7 +151,7 @@ export default function MeusPetsScreen() {
 
   const addDevice = () => {
     newDeviceDraft.reset();
-    newDeviceDraft.set({ origin: 'meus-pets' });
+    newDeviceDraft.set({ origin: 'meus-pets', petId: selected?.id });
     router.push('/novo-dispositivo');
   };
 
@@ -150,6 +173,15 @@ export default function MeusPetsScreen() {
   }
 
   const { upToDate, pending } = selected.vaccines;
+  const devices = selected.devices;
+  const deviceTitle =
+    devices.length === 0
+      ? 'Nenhum dispositivo'
+      : devices.length === 1
+        ? getDeviceType(devices[0].type).label
+        : `${devices.length} dispositivos`;
+  const deviceBadge =
+    devices.length === 0 ? 'Não vinculado' : devices.some((d) => d.online) ? 'Online' : 'Offline';
 
   return (
     <ScreenContainer
@@ -220,12 +252,15 @@ export default function MeusPetsScreen() {
 
       <InfoCard
         icon="wifi"
-        caption={`Dispositivo ${selected.species === 'Gato' ? 'da' : 'do'} ${selected.name}`}
-        title={selected.device?.name ?? 'Nenhum dispositivo'}
-        badge={selected.device?.linked ? 'Vinculado' : 'Não vinculado'}
-        badgeOk={!!selected.device?.linked}
+        caption={`Dispositivos ${selected.species === 'Gato' ? 'da' : 'do'} ${selected.name}`}
+        title={deviceTitle}
+        subtitle={devices.length > 0 ? 'Toque para adicionar outro' : 'Toque para conectar o primeiro'}
+        badge={deviceBadge}
+        badgeOk={devices.some((d) => d.online)}
         onPress={addDevice}
       />
+
+      <PetDeviceList devices={devices} onRemove={removeDevice} />
 
       <View style={styles.saveBox}>
         <Button title="Salvar alterações" onPress={handleSave} loading={saving} />

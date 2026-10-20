@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { NewPetLayout, StepKicker, StepSubtitle, StepTitle } from '@/components/pets/NewPetLayout';
 import { Button } from '@/components/ui/Button';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { newPetDraft } from '@/services/newPetDraft';
 import { errorMessage } from '@/services/api';
 import { petService } from '@/services/petService';
+import { notify } from '@/utils/dialogs';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 
 export default function LinkDeviceScreen() {
@@ -15,9 +17,20 @@ export default function LinkDeviceScreen() {
   const draft = newPetDraft.get();
   const [saving, setSaving] = useState(false);
 
-  const openAssistant = () =>
-    // TODO: abrir o assistente de conexão do dispositivo (Wi-Fi/MQTT) quando for desenvolvido
-    Alert.alert('Assistente de conexão', 'O assistente será integrado nas próximas etapas.');
+  const openAssistant = async () => {
+    try {
+      setSaving(true);
+      const pet = await petService.add(draft);
+      newPetDraft.reset(); // o pet já foi cadastrado: evita cadastrar de novo se a pessoa voltar
+      newDeviceDraft.reset();
+      newDeviceDraft.set({ origin: 'meus-pets', petId: pet.id });
+      router.replace('/novo-dispositivo');
+    } catch (e) {
+      notify('Não foi possível cadastrar', errorMessage(e, 'Tente novamente em instantes.'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // "Vincular depois": finaliza o cadastro e vai para a tela de pet cadastrado
   const linkLater = async () => {
@@ -26,7 +39,7 @@ export default function LinkDeviceScreen() {
       await petService.add(draft);
       router.replace('/novo-pet/concluido');
     } catch (e) {
-      Alert.alert('Não foi possível cadastrar', errorMessage(e, 'Tente novamente em instantes.'));
+      notify('Não foi possível cadastrar', errorMessage(e, 'Tente novamente em instantes.'));
     } finally {
       setSaving(false);
     }

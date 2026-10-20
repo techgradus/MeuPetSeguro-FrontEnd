@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { NewPetLayout, StepKicker, StepSubtitle, StepTitle } from '@/components/pets/NewPetLayout';
@@ -8,6 +8,7 @@ import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { newPetDraft } from '@/services/newPetDraft';
 import { errorMessage } from '@/services/api';
 import { petService } from '@/services/petService';
+import { notify } from '@/utils/dialogs';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 
 /** Ilustração do colar/pote inteligente com Wi-Fi. */
@@ -36,7 +37,7 @@ export default function ConnectDeviceScreen() {
       await petService.add(draft);
       router.replace('/novo-pet/concluido');
     } catch (e) {
-      Alert.alert('Não foi possível cadastrar', errorMessage(e, 'Tente novamente em instantes.'));
+      notify('Não foi possível cadastrar', errorMessage(e, 'Tente novamente em instantes.'));
     } finally {
       setSaving(false);
     }

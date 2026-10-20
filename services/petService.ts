@@ -1,4 +1,5 @@
 import { api, FILES_BASE } from '@/services/api';
+import { type ApiDevice, deviceFromApi } from '@/services/deviceService';
 import { Pet, PetFormValues, Species } from '@/types/pet';
 import { Platform } from 'react-native';
 
@@ -11,6 +12,7 @@ type ApiPet = {
   weightKg: number | null;
   notes: string | null;
   photoUrl: string | null;
+  devices?: ApiDevice[];
 };
 
 export type NewPetInput = PetFormValues & { notes?: string; photoUri?: string };
@@ -50,7 +52,7 @@ function fromApi(p: ApiPet): Pet {
     notes: p.notes ?? undefined,
     photo: p.photoUrl ? { uri: `${FILES_BASE}${p.photoUrl}` } : undefined,
     vaccines: { upToDate: 0, pending: 0 },
-    device: undefined,
+    devices: (p.devices ?? []).map(deviceFromApi),
   };
 }
 

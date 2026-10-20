@@ -20,6 +20,7 @@ export function toDashboardPet(pet: Pet, index: number): DashboardPet {
     breed: pet.breed,
     emoji: pet.species === 'Gato' ? '🐱' : '🐶',
     photo: pet.photo ?? null,
+    online: pet.devices.some((d) => d.online),
     message: sample.message.map(withName),
     insight: withName(sample.insight),
     sample: sampleId,

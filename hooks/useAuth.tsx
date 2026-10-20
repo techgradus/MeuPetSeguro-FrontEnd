@@ -1,3 +1,4 @@
+import { clearAlertsCache } from '@/hooks/useAlerts';
 import { clearPetsCache } from '@/hooks/usePets';
 import { setUnauthorizedHandler } from '@/services/api';
 import { authService, type SignInPayload, type UpdateProfilePayload } from '@/services/authService';
@@ -71,7 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!user) clearPetsCache();
+    if (!user) {
+      clearPetsCache();
+      clearAlertsCache();
+    }
   }, [user]);
 
   const signIn = useCallback(async (payload: SignInPayload) => {

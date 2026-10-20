@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceFlowLayout';
@@ -21,9 +21,13 @@ export default function DeviceDoneScreen() {
     router.replace(backTo);
   };
 
-  const linkPet = () =>
-    // TODO: escolher a qual pet o dispositivo será vinculado
-    Alert.alert('Vincular um pet', 'Esta função será integrada nas próximas etapas.');
+  // Recomeça o assistente para o mesmo pet (um pet pode ter colar, pote de comida e pote de água)
+  const addAnother = () => {
+    const { petId, origin } = newDeviceDraft.get();
+    newDeviceDraft.reset();
+    newDeviceDraft.set({ petId, origin });
+    router.replace('/novo-dispositivo');
+  };
 
   return (
     <DeviceFlowLayout step={5} onBack={finish}>
@@ -53,7 +57,7 @@ export default function DeviceDoneScreen() {
 
       <View style={styles.actions}>
         <Button title="Concluir" onPress={finish} />
-        <SecondaryButton title="Vincular um pet" onPress={linkPet} />
+        <SecondaryButton title="Adicionar outro dispositivo" onPress={addAnother} />
       </View>
     </DeviceFlowLayout>
   );

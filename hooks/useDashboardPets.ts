@@ -6,5 +6,6 @@ import { usePets } from '@/hooks/usePets';
 export function useDashboardPets() {
   const { pets, loading, error, reload } = usePets();
   const dashboardPets = useMemo(() => pets.map(toDashboardPet), [pets]);
-  return { pets: dashboardPets, loading, error, reload };
+  const devices = useMemo(() => pets.flatMap((p) => p.devices), [pets]);
+  return { pets: dashboardPets, devices, loading, error, reload };
 }
