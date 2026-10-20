@@ -3,6 +3,8 @@ import { Href, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed, textColor, surfaceColor } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, useLayout } from '@/hooks/useLayout';
@@ -63,12 +65,13 @@ const TABS: Tab[] = [
 export default function BottomNav({ active }: { active: TabId }) {
   const router = useRouter();
   const layout = useLayout();
+  const { dark, c } = useAppTheme();
   const { s } = layout;
 
   const styles = useMemo(
-    () => makeStyles(layout),
+    () => makeStyles(layout, dark),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout.frameWidth, layout.insetBottom, layout.isWeb],
+    [layout.frameWidth, layout.insetBottom, layout.isWeb, dark],
   );
 
   return (
@@ -90,7 +93,7 @@ export default function BottomNav({ active }: { active: TabId }) {
               <Ionicons
                 name={isActive && tab.activeIcon ? tab.activeIcon : tab.icon}
                 size={s(24)}
-                color={isActive ? colors.primary : '#7E8C8A'}
+                color={isActive ? c.primary : '#7E8C8A'}
               />
 
               {tab.notification && <View style={styles.bottomNotification} />}
@@ -109,8 +112,8 @@ export default function BottomNav({ active }: { active: TabId }) {
   );
 }
 
-function makeStyles({ s, insetBottom, navHeight }: Layout) {
-  return StyleSheet.create({
+function makeStyles({ s, insetBottom, navHeight }: Layout, dark: boolean) {
+  return StyleSheet.create(themed({
     bottomNavigation: {
       position: 'absolute',
       left: 0,
@@ -167,5 +170,5 @@ function makeStyles({ s, insetBottom, navHeight }: Layout) {
     bottomLabelActive: {
       color: colors.primary,
     },
-  });
+  }, dark));
 }

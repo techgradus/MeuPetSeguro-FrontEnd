@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import BottomNav, { TabId } from '@/components/BottomNav';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed, textColor, surfaceColor } from '@/constants/darkTheme';
 import { ui } from '@/constants/ui';
 import { Layout, useLayout, WEB_FRAME_BORDER } from '@/hooks/useLayout';
 
@@ -20,11 +22,12 @@ type Props = {
  */
 export default function PhoneFrame({ active, children }: Props) {
   const layout = useLayout();
+  const { dark, c } = useAppTheme();
 
   const styles = useMemo(
-    () => makeStyles(layout),
+    () => makeStyles(layout, dark),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout.frameWidth, layout.frameHeight, layout.isWeb],
+    [layout.frameWidth, layout.frameHeight, layout.isWeb, dark],
   );
 
   return (
@@ -46,8 +49,8 @@ export default function PhoneFrame({ active, children }: Props) {
   );
 }
 
-function makeStyles({ isWeb, frameWidth, frameHeight }: Layout) {
-  return StyleSheet.create({
+function makeStyles({ isWeb, frameWidth, frameHeight }: Layout, dark: boolean) {
+  return StyleSheet.create(themed({
     browserBackground: {
       flex: 1,
       backgroundColor: isWeb ? '#E9F3F2' : ui.screenBackground,
@@ -92,5 +95,5 @@ function makeStyles({ isWeb, frameWidth, frameHeight }: Layout) {
       backgroundColor: ui.screenBackground,
       borderRadius: isWeb ? 36 : 0,
     },
-  });
+  }, dark));
 }

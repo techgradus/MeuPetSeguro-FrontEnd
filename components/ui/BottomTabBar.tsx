@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 
 export type TabRoute = 'home' | 'meus-pets' | 'alertas' | 'relatorios' | 'config';
@@ -22,6 +24,8 @@ const tabs: { route: TabRoute; label: string; icon: Icon; activeIcon: Icon; noti
 ];
 
 export function BottomTabBar({ active, onPress }: Props) {
+  const { dark, c } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   return (
     <View style={styles.bar}>
       {tabs.map((tab) => {
@@ -50,7 +54,7 @@ export function BottomTabBar({ active, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   bar: {
     height: 76,
     backgroundColor: '#FDFEFB',
@@ -70,4 +74,4 @@ const styles = StyleSheet.create({
   },
   label: { fontFamily: fonts.bold, fontSize: 11, color: '#7E8C8A', marginTop: 2 },
   labelActive: { color: colors.primary },
-});
+}, dark));

@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
-import { fieldStyles, LabeledField } from '@/components/pets/LabeledField';
+import { makeFieldStyles, LabeledField } from '@/components/pets/LabeledField';
 import { SelectField } from '@/components/pets/SelectField';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed, textColor, surfaceColor } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
@@ -39,6 +41,9 @@ function DateField({
   placeholder: string;
   flex?: boolean;
 }) {
+  const { dark, c } = useAppTheme();
+  const dateStyles = useMemo(() => makeDateStyles(dark), [dark]);
+  const fieldStyles = useMemo(() => makeFieldStyles(dark), [dark]);
   return (
     <View style={[dateStyles.wrapper, flex && { flex: 1 }]}>
       <Text style={dateStyles.label}>{label}</Text>
@@ -47,7 +52,7 @@ function DateField({
           value={value}
           onChangeText={(t) => onChange(maskDate(t))}
           placeholder={placeholder}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={c.muted}
           keyboardType="number-pad"
           maxLength={10}
           style={[
@@ -55,7 +60,7 @@ function DateField({
             Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null,
           ]}
         />
-        <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
+        <Ionicons name="calendar-outline" size={18} color={c.muted} />
       </View>
       {!!error && <Text style={dateStyles.error}>{error}</Text>}
     </View>
@@ -79,12 +84,13 @@ export default function AddVaccineScreen() {
   const [saving, setSaving] = useState(false);
 
   const layout = useLayout();
+  const { dark, c } = useAppTheme();
   const { s } = layout;
 
   const styles = useMemo(
-    () => makeStyles(layout),
+    () => makeStyles(layout, dark),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout.frameWidth, layout.frameHeight, layout.insetTop, layout.insetBottom, layout.isWeb],
+    [layout.frameWidth, layout.frameHeight, layout.insetTop, layout.insetBottom, layout.isWeb, dark],
   );
 
   useEffect(() => {
@@ -176,7 +182,7 @@ export default function AddVaccineScreen() {
             {/* CABEÇALHO */}
             <View style={styles.header}>
               <Pressable style={styles.backButton} onPress={goBack} accessibilityRole="button" accessibilityLabel="Voltar">
-                <Ionicons name="chevron-back" size={s(22)} color={colors.text} />
+                <Ionicons name="chevron-back" size={s(22)} color={c.text} />
               </Pressable>
               <Text style={styles.headerTitle}>{isEdit ? 'Editar vacina' : 'Adicionar vacina'}</Text>
               <View style={styles.backButtonSpacer} />
@@ -248,18 +254,18 @@ export default function AddVaccineScreen() {
   );
 }
 
-const dateStyles = StyleSheet.create({
+const makeDateStyles = (dark: boolean) => StyleSheet.create(themed({
   wrapper: { marginBottom: 14 },
   label: { fontFamily: fonts.semibold, fontSize: 12, color: colors.text, marginBottom: 6 },
   input: { flex: 1, minWidth: 0, fontFamily: fonts.medium, fontSize: 14, color: colors.text, paddingVertical: 10 },
   boxError: { borderColor: colors.error, backgroundColor: colors.errorLight },
   error: { fontFamily: fonts.medium, fontSize: 11, color: colors.error, marginTop: 5 },
-});
+}, dark));
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ s, isWeb, insetTop, navHeight }: Layout, dark: boolean) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     flex: { flex: 1 },
     scrollContent: {
       paddingHorizontal: s(24),
@@ -288,5 +294,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
     },
     saveDisabled: { opacity: 0.6 },
     saveText: { fontFamily: fonts.extrabold, fontSize: s(14), color: '#FFFFFF' },
-  });
+  }, dark));
 }

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius, shadow } from '@/constants/petTheme';
 
 type Props = { source?: ImageSourcePropType; size?: number; onPress?: () => void };
@@ -9,6 +11,8 @@ const BORDER = 6;
 
 /** Foto de perfil do pet: quadrado arredondado, borda branca e botão "+" para trocar a foto. */
 export function PetAvatar({ source, size = 150, onPress }: Props) {
+  const { dark, c } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   const inner = size - BORDER * 2;
   const innerRadius = radius.xl - BORDER;
 
@@ -22,7 +26,7 @@ export function PetAvatar({ source, size = 150, onPress }: Props) {
               <Image source={source} resizeMode="cover" style={{ width: inner, height: inner }} />
             ) : (
               <View style={[styles.placeholder, { width: inner, height: inner }]}>
-                <Ionicons name="paw" size={size * 0.35} color={colors.primary} />
+                <Ionicons name="paw" size={size * 0.35} color={c.primary} />
               </View>
             )}
           </View>
@@ -36,7 +40,7 @@ export function PetAvatar({ source, size = 150, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   wrapper: { alignItems: 'center', alignSelf: 'center' },
   frame: {
     padding: BORDER, borderRadius: radius.xl, backgroundColor: colors.surface, ...shadow, shadowOpacity: 0.12,
@@ -48,4 +52,4 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   hint: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted, marginTop: 14 },
-});
+}, dark));

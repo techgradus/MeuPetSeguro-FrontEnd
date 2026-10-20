@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius } from '@/constants/petTheme';
 
 type Props = TextInputProps & { label: string; suffix?: string; error?: string | null };
 
 export function LabeledField({ label, suffix, error, style, ...rest }: Props) {
+  const { dark, c } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{label}</Text>
@@ -13,7 +17,7 @@ export function LabeledField({ label, suffix, error, style, ...rest }: Props) {
         <TextInput
           {...rest}
           style={[styles.input, style]}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={c.muted}
         />
         {!!suffix && <Text style={styles.suffix}>{suffix}</Text>}
       </View>
@@ -27,14 +31,16 @@ export function LabeledField({ label, suffix, error, style, ...rest }: Props) {
   );
 }
 
-export const fieldStyles = StyleSheet.create({
+export const makeFieldStyles = (dark: boolean) => StyleSheet.create(themed({
   box: {
     minHeight: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14,
     borderRadius: radius.md, borderWidth: 1.5, borderColor: '#CDEEE8', backgroundColor: '#FBFFFD',
   },
-});
+}, dark));
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => {
+  const fieldStyles = makeFieldStyles(dark);
+  return StyleSheet.create(themed({
   wrapper: { flex: 1, marginBottom: 14 },
   label: { fontFamily: fonts.semibold, fontSize: 12, color: colors.text, marginBottom: 6 },
   field: { ...fieldStyles.box },
@@ -43,4 +49,5 @@ const styles = StyleSheet.create({
   suffix: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, marginLeft: 8, flexShrink: 0 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
   errorText: { fontFamily: fonts.medium, fontSize: 11, color: colors.error, flex: 1 },
-});
+}, dark));
+};

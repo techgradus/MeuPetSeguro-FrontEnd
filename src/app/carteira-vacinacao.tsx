@@ -4,6 +4,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed, textColor, surfaceColor } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
@@ -27,12 +29,13 @@ export default function VaccineWalletScreen() {
   const [vaccines, setVaccines] = useState<Vaccine[]>([]);
 
   const layout = useLayout();
+  const { dark, c } = useAppTheme();
   const { s } = layout;
 
   const styles = useMemo(
-    () => makeStyles(layout),
+    () => makeStyles(layout, dark),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout.frameWidth, layout.frameHeight, layout.insetTop, layout.insetBottom, layout.isWeb],
+    [layout.frameWidth, layout.frameHeight, layout.insetTop, layout.insetBottom, layout.isWeb, dark],
   );
 
   // Recarrega sempre que a tela volta ao foco (ex.: depois de adicionar uma vacina)
@@ -81,7 +84,7 @@ export default function VaccineWalletScreen() {
           {/* CABEÇALHO */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={goBack} accessibilityRole="button" accessibilityLabel="Voltar">
-              <Ionicons name="chevron-back" size={s(22)} color={colors.text} />
+              <Ionicons name="chevron-back" size={s(22)} color={c.text} />
             </Pressable>
             <Text style={styles.headerTitle}>Carteira de Vacinação</Text>
             <View style={styles.backButtonSpacer} />
@@ -95,7 +98,7 @@ export default function VaccineWalletScreen() {
                   {pet.photo ? (
                     <Image source={pet.photo} style={styles.petImage} resizeMode="cover" />
                   ) : (
-                    <Ionicons name="paw" size={s(20)} color={colors.primary} />
+                    <Ionicons name="paw" size={s(20)} color={c.primary} />
                   )}
                 </View>
                 <View style={styles.petInfo}>
@@ -135,7 +138,7 @@ export default function VaccineWalletScreen() {
 
               {total === 0 ? (
                 <View style={styles.empty}>
-                  <MaterialCommunityIcons name="needle" size={s(26)} color={colors.primary} />
+                  <MaterialCommunityIcons name="needle" size={s(26)} color={c.primary} />
                   <Text style={styles.emptyText}>
                     Nenhuma vacina cadastrada. Toque em "+ Adicionar vacina" para registrar a primeira dose.
                   </Text>
@@ -144,7 +147,7 @@ export default function VaccineWalletScreen() {
                 vaccines.map((v) => (
                   <Pressable key={v.id} style={styles.vaccineCard} onPress={() => openDetails(v.id)} accessibilityRole="button">
                     <View style={styles.vaccineIcon}>
-                      <MaterialCommunityIcons name="needle" size={s(18)} color={colors.primary} />
+                      <MaterialCommunityIcons name="needle" size={s(18)} color={c.primary} />
                     </View>
 
                     <View style={styles.vaccineInfo}>
@@ -153,11 +156,11 @@ export default function VaccineWalletScreen() {
                       {!!v.nextDoseAt && <Text style={styles.vaccineDate}>Próxima: {isoToBr(v.nextDoseAt)}</Text>}
                     </View>
 
-                    <View style={[styles.statusBadge, { backgroundColor: STATUS_STYLE[v.status].bg }]}>
-                      <Text style={[styles.statusText, { color: STATUS_STYLE[v.status].fg }]}>{v.status}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: surfaceColor(STATUS_STYLE[v.status].bg, dark) }]}>
+                      <Text style={[styles.statusText, { color: textColor(STATUS_STYLE[v.status].fg, dark) }]}>{v.status}</Text>
                     </View>
 
-                    <Ionicons name="chevron-forward" size={s(18)} color={colors.text} />
+                    <Ionicons name="chevron-forward" size={s(18)} color={c.text} />
                   </Pressable>
                 ))
               )}
@@ -169,10 +172,10 @@ export default function VaccineWalletScreen() {
   );
 }
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ s, isWeb, insetTop, navHeight }: Layout, dark: boolean) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     scrollContent: {
       paddingHorizontal: s(24),
       paddingTop: isWeb ? s(24) : insetTop + s(14),
@@ -232,5 +235,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       borderColor: ui.cardBorder, padding: s(20),
     },
     emptyText: { fontFamily: fonts.medium, fontSize: s(12), lineHeight: s(18), color: '#6F8481', textAlign: 'center' },
-  });
+  }, dark));
 }

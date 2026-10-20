@@ -4,6 +4,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed, textColor, surfaceColor } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
@@ -31,12 +33,13 @@ export default function VaccineDetailScreen() {
   const [deleting, setDeleting] = useState(false);
 
   const layout = useLayout();
+  const { dark, c } = useAppTheme();
   const { s } = layout;
 
   const styles = useMemo(
-    () => makeStyles(layout),
+    () => makeStyles(layout, dark),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout.frameWidth, layout.frameHeight, layout.insetTop, layout.insetBottom, layout.isWeb],
+    [layout.frameWidth, layout.frameHeight, layout.insetTop, layout.insetBottom, layout.isWeb, dark],
   );
 
   // Recarrega ao voltar ao foco (ex.: depois de editar a vacina)
@@ -100,14 +103,14 @@ export default function VaccineDetailScreen() {
           {/* CABEÇALHO */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={goBack} accessibilityRole="button" accessibilityLabel="Voltar">
-              <Ionicons name="chevron-back" size={s(22)} color={colors.text} />
+              <Ionicons name="chevron-back" size={s(22)} color={c.text} />
             </Pressable>
             <Text style={styles.headerTitle}>Detalhe da vacina</Text>
             <View style={styles.backButtonSpacer} />
           </View>
 
           {loading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginTop: s(40) }} />
+            <ActivityIndicator color={c.primary} style={{ marginTop: s(40) }} />
           ) : !vaccine ? (
             <View style={styles.notFound}>
               <Text style={styles.notFoundText}>Esta vacina não foi encontrada.</Text>
@@ -120,12 +123,12 @@ export default function VaccineDetailScreen() {
               {/* RESUMO */}
               <View style={styles.heroCard}>
                 <View style={styles.heroIcon}>
-                  <MaterialCommunityIcons name="needle" size={s(26)} color={colors.primary} />
+                  <MaterialCommunityIcons name="needle" size={s(26)} color={c.primary} />
                 </View>
                 <Text style={styles.heroPet}>Vacina de {petName || 'seu pet'}</Text>
                 <Text style={styles.heroName}>{vaccine.name}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: STATUS_STYLE[vaccine.status].bg }]}>
-                  <Text style={[styles.statusText, { color: STATUS_STYLE[vaccine.status].fg }]}>{vaccine.status}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: surfaceColor(STATUS_STYLE[vaccine.status].bg, dark) }]}>
+                  <Text style={[styles.statusText, { color: textColor(STATUS_STYLE[vaccine.status].fg, dark) }]}>{vaccine.status}</Text>
                 </View>
               </View>
 
@@ -134,7 +137,7 @@ export default function VaccineDetailScreen() {
                 {rows.map((row, index) => (
                   <View key={row.label} style={[styles.infoRow, index > 0 && styles.infoDivider]}>
                     <View style={styles.infoIcon}>
-                      <Ionicons name={row.icon} size={s(16)} color={colors.primary} />
+                      <Ionicons name={row.icon} size={s(16)} color={c.primary} />
                     </View>
                     <View style={styles.infoTexts}>
                       <Text style={styles.infoLabel}>{row.label}</Text>
@@ -185,10 +188,10 @@ export default function VaccineDetailScreen() {
   );
 }
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ s, isWeb, insetTop, navHeight }: Layout, dark: boolean) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     scrollContent: {
       paddingHorizontal: s(24),
       paddingTop: isWeb ? s(24) : insetTop + s(14),
@@ -262,5 +265,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       alignItems: 'center', justifyContent: 'center',
     },
     dialogDeleteText: { fontFamily: fonts.bold, fontSize: s(13), color: '#FFFFFF' },
-  });
+  }, dark));
 }

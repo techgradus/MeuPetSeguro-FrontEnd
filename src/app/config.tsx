@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed, textColor, surfaceColor } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
@@ -47,22 +49,22 @@ type RowProps = {
 export default function SettingsScreen() {
   const router = useRouter();
 
-  // TODO: ligar ao tema do app e às permissões de notificação
-  const [darkMode, setDarkMode] = useState(false);
+  // TODO: ligar às permissões de notificação
   const [notifications, setNotifications] = useState(true);
 
   const layout = useLayout();
+  const { dark, c, setDark } = useAppTheme();
   const { s } = layout;
 
   const styles = useMemo(
-    () => makeStyles(layout),
+    () => makeStyles(layout, dark),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       layout.frameWidth,
       layout.frameHeight,
       layout.insetTop,
       layout.insetBottom,
-      layout.isWeb,
+      layout.isWeb, dark
     ],
   );
 
@@ -100,7 +102,7 @@ export default function SettingsScreen() {
     const content = (
       <>
         <View style={styles.rowIcon}>
-          <Ionicons name={icon} size={s(22)} color={colors.primary} />
+          <Ionicons name={icon} size={s(22)} color={c.primary} />
         </View>
 
         <View style={styles.rowText}>
@@ -112,7 +114,7 @@ export default function SettingsScreen() {
           <Switch
             value={switchValue}
             onValueChange={onSwitchChange}
-            trackColor={{ false: '#E4ECEB', true: colors.primary }}
+            trackColor={{ false: surfaceColor('#E4ECEB', dark), true: colors.primary }}
             thumbColor="#FFFFFF"
             accessibilityLabel={title}
           />
@@ -120,7 +122,7 @@ export default function SettingsScreen() {
           <Ionicons
             name="chevron-forward"
             size={s(18)}
-            color={colors.text}
+            color={c.text}
           />
         )}
       </>
@@ -177,7 +179,7 @@ export default function SettingsScreen() {
             <Ionicons
               name="chevron-forward"
               size={s(18)}
-              color={colors.text}
+              color={c.text}
             />
           </Pressable>
 
@@ -189,8 +191,8 @@ export default function SettingsScreen() {
               icon="moon-outline"
               title="Modo escuro"
               subtitle="Visual confortável à noite"
-              switchValue={darkMode}
-              onSwitchChange={setDarkMode}
+              switchValue={dark}
+              onSwitchChange={setDark}
             />
           </View>
 
@@ -269,10 +271,10 @@ export default function SettingsScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ s, isWeb, insetTop, navHeight }: Layout, dark: boolean) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     scrollContent: {
       paddingHorizontal: s(24),
       paddingTop: isWeb ? s(24) : insetTop + s(14),
@@ -427,5 +429,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       textAlign: 'center',
       marginTop: s(16),
     },
-  });
+  }, dark));
 }

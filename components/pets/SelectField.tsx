@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
-import { fieldStyles } from './LabeledField';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { themed } from '@/constants/darkTheme';
+import { makeFieldStyles } from './LabeledField';
 
 type Props<T extends string> = {
   label: string;
@@ -12,6 +14,9 @@ type Props<T extends string> = {
 };
 
 export function SelectField<T extends string>({ label, value, options, onChange }: Props<T>) {
+  const { dark, c } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
+  const fieldStyles = useMemo(() => makeFieldStyles(dark), [dark]);
   const [open, setOpen] = useState(false);
 
   return (
@@ -19,7 +24,7 @@ export function SelectField<T extends string>({ label, value, options, onChange 
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity style={fieldStyles.box} activeOpacity={0.8} onPress={() => setOpen(true)}>
         <Text style={styles.value}>{value}</Text>
-        <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+        <Ionicons name="chevron-down" size={18} color={c.muted} />
       </TouchableOpacity>
 
       <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
@@ -33,7 +38,7 @@ export function SelectField<T extends string>({ label, value, options, onChange 
                 onPress={() => { onChange(opt); setOpen(false); }}
               >
                 <Text style={[styles.optionText, opt === value && styles.optionActive]}>{opt}</Text>
-                {opt === value && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                {opt === value && <Ionicons name="checkmark" size={18} color={c.primary} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -43,7 +48,7 @@ export function SelectField<T extends string>({ label, value, options, onChange 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   wrapper: { flex: 1, marginBottom: 14 },
   label: { fontFamily: fonts.semibold, fontSize: 12, color: colors.text, marginBottom: 6 },
   value: { flex: 1, fontFamily: fonts.medium, fontSize: 14, color: colors.text },
@@ -53,4 +58,4 @@ const styles = StyleSheet.create({
   option: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
   optionText: { fontFamily: fonts.medium, fontSize: 15, color: colors.text },
   optionActive: { fontFamily: fonts.bold, color: colors.primary },
-});
+}, dark));
