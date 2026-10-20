@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { BottomTabBar } from '@/components/ui/BottomTabBar';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
@@ -14,6 +14,7 @@ import { InfoCard } from '@/components/pets/InfoCard';
 import { useResponsive } from '@/hooks/useResponsive';
 import { petService } from '@/services/petService';
 import { newPetDraft } from '@/services/newPetDraft';
+import { vaccineService } from '@/services/vaccineService';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { Pet, PetFormValues, Species } from '@/types/pet';
 import { colors, fonts, spacing } from '@/constants/petTheme';
@@ -47,6 +48,14 @@ export default function MeusPetsScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [, refreshVaccines] = useState(0);
+
+  // atualiza o resumo da carteira ao voltar para esta tela
+  useFocusEffect(
+    useCallback(() => {
+      refreshVaccines((n) => n + 1);
+    }, []),
+  );
 
   useEffect(() => {
     petService.list().then((list) => {
@@ -100,7 +109,7 @@ export default function MeusPetsScreen() {
 
   if (!selected || !form) return <ScreenContainer edges={['top', 'left', 'right']}><View /></ScreenContainer>;
 
-  const { upToDate, pending } = selected.vaccines;
+  const { upToDate, pending } = vaccineService.summary(selected.id, selected.vaccines);
 
   return (
     <ScreenContainer
@@ -156,7 +165,7 @@ export default function MeusPetsScreen() {
         icon="medkit-outline"
         title="Carteira de Vacinação"
         subtitle={`${upToDate} ${upToDate === 1 ? 'vacina em dia' : 'vacinas em dia'}, ${pending} ${pending === 1 ? 'pendente' : 'pendentes'}`}
-        onPress={comingSoon('Carteira de Vacinação')}
+        onPress={() => router.push({ pathname: '/carteira-vacinacao', params: { petId: selected.id } })}
       />
 
       <InfoCard
