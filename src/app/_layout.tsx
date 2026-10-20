@@ -11,6 +11,7 @@ import {
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { WEB_PHONE } from '@/hooks/useResponsive';
+import { useAppTheme } from '@/hooks/useAppTheme';
 
 // Mantém a tela nativa de abertura até as fontes carregarem.
 SplashScreen.preventAutoHideAsync();
@@ -20,10 +21,11 @@ const SHOW_PHONE_FRAME_ON_WEB = true;
 
 /** No navegador, mostra o app em uma moldura do tamanho de um celular. Em celular de verdade não faz nada. */
 function WebPhoneFrame({ children }: { children: ReactNode }) {
+  const { dark } = useAppTheme();
   if (Platform.OS !== 'web' || !SHOW_PHONE_FRAME_ON_WEB) return <>{children}</>;
   return (
-    <View style={styles.page}>
-      <View style={styles.phone}>{children}</View>
+    <View style={[styles.page, dark && { backgroundColor: '#081212' }]}>
+      <View style={[styles.phone, dark && { backgroundColor: '#0E1A1A', borderColor: '#263D3D' }]}>{children}</View>
     </View>
   );
 }
