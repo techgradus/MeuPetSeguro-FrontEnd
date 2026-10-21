@@ -27,7 +27,8 @@ import { confirmAction, notify } from '@/utils/dialogs';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useProfilePhoto, setProfilePhoto } from '@/hooks/useProfilePhoto';
 
 const SPECIES: readonly Species[] = ['Cachorro', 'Gato'];
 
@@ -126,9 +127,6 @@ export default function MeusPetsScreen() {
       notify('Não foi possível trocar a foto', errorMessage(e, 'Tente novamente em instantes.'));
     }
   };
-
-  const comingSoon = (title: string) => () =>
-    Alert.alert(title, 'Esta função será integrada nas próximas etapas.');
 
   const removeDevice = (device: PetDevice) => {
     if (!selected) return;

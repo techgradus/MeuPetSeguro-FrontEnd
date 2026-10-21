@@ -23,6 +23,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/services/api';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { useProfilePhoto, setProfilePhoto } from '@/hooks/useProfilePhoto';
+import { notify } from '@/utils/dialogs';
 
 type FieldKey = 'name' | 'email' | 'phone';
 
@@ -84,6 +86,22 @@ export default function AccountScreen() {
   const phoneDigits = form.phone.replace(/\D/g, '');
   const phoneValid = phoneDigits.length === 0 || phoneDigits.length === 10 || phoneDigits.length === 11;
   const canSave = emailValid && nameValid && phoneValid;
+
+  const { tx } = useAppTheme();
+  const photo = useProfilePhoto();
+
+  async function changePhoto() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      notify('Permissão necessária', 'Permita o acesso às fotos para escolher uma imagem.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setProfilePhoto(result.assets[0].uri);
+  }
 
   function update(key: FieldKey, value: string) {
     setSaved(false);

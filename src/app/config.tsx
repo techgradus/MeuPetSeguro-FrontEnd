@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
+import { newPetDraft } from '@/services/newPetDraft';
 
 
 // Rota da tela de adicionar pet. Ajuste se o arquivo tiver outro nome.
@@ -75,6 +76,11 @@ export default function SettingsScreen() {
       layout.dark,
     ],
   );
+
+  function addPet() {
+    newPetDraft.reset();
+    router.push(ADD_PET_ROUTE);
+  }
 
   function openDevices() {
     // abre o assistente de novo dispositivo e, ao concluir, volta para Config
@@ -233,7 +239,7 @@ export default function SettingsScreen() {
               icon="wifi-outline"
               title="Dispositivos"
               subtitle="Adicionar ou gerenciar"
-              onPress={() => router.push('/novo-dispositivo/concluido')}
+              onPress={openDevices}
 
               divider
             />
@@ -242,7 +248,7 @@ export default function SettingsScreen() {
               icon="paw-outline"
               title="Adicionar novo pet"
               subtitle="Cadastre e conecte um dispositivo"
-              onPress={() => router.push(ADD_PET_ROUTE)}
+              onPress={addPet}
               divider
             />
 
