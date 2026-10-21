@@ -1,16 +1,20 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceFlowLayout';
 import { Button } from '@/components/ui/Button';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { themed } from '@/constants/darkTheme';
 import { getDeviceType } from '@/constants/deviceTypes';
-import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useMemo } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 export default function DeviceDoneScreen() {
   const router = useRouter();
+  const { dark, bg } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   const info = getDeviceType(newDeviceDraft.get().type ?? 'colar');
 
   const finish = () => {
@@ -45,7 +49,7 @@ export default function DeviceDoneScreen() {
       />
 
       <View style={styles.card}>
-        <View style={[styles.icon, { backgroundColor: info.softColor }]}>
+        <View style={[styles.icon, { backgroundColor: bg(info.softColor) }]}>
           <Ionicons name={info.icon} size={20} color={info.color} />
         </View>
         <View style={styles.texts}>
@@ -63,7 +67,7 @@ export default function DeviceDoneScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   center: { alignItems: 'center', marginTop: spacing.md, marginBottom: spacing.md },
   circle: {
     width: 130, height: 130, borderRadius: 65, backgroundColor: colors.primaryLight,
@@ -78,4 +82,4 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
   description: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted, marginTop: 2 },
   actions: { gap: 12 },
-});
+}, dark));

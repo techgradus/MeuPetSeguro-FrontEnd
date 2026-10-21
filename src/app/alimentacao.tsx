@@ -4,9 +4,11 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { useDashboardPets } from '@/hooks/useDashboardPets';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
 /* ============================================================
@@ -82,6 +84,7 @@ const LOW_TEXT = 'O pote pode ficar vazio nas próximas 3 horas.';
 
 export default function FeedingScreen() {
   const router = useRouter();
+  const { tx, bg } = useAppTheme();
   const { pet: petParam, tab: tabParam } = useLocalSearchParams<{
     pet?: string;
     tab?: string;
@@ -109,6 +112,7 @@ export default function FeedingScreen() {
       layout.insetTop,
       layout.insetBottom,
       layout.isWeb,
+      layout.dark,
     ],
   );
 
@@ -141,7 +145,7 @@ export default function FeedingScreen() {
               accessibilityRole="button"
               accessibilityLabel="Voltar"
             >
-              <Ionicons name="chevron-back" size={s(22)} color={colors.text} />
+              <Ionicons name="chevron-back" size={s(22)} color={tx(colors.text)} />
             </Pressable>
 
             <Text style={styles.headerTitle}>Alimentação</Text>
@@ -180,7 +184,7 @@ export default function FeedingScreen() {
           <View style={styles.levelCard}>
             <View style={styles.levelInfo}>
               <View
-                style={[styles.levelIcon, { backgroundColor: info.softColor }]}
+                style={[styles.levelIcon, { backgroundColor: bg(info.softColor) }]}
               >
                 <Ionicons
                   name={info.headerIcon}
@@ -286,7 +290,7 @@ export default function FeedingScreen() {
                 <View
                   style={[
                     styles.historyIcon,
-                    { backgroundColor: info.softColor },
+                    { backgroundColor: bg(info.softColor) },
                   ]}
                 >
                   {kind === 'food' ? (
@@ -323,11 +327,11 @@ export default function FeedingScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
   const border = '#D2E8E3';
   const divider = '#E3ECEA';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     scrollContent: {
       paddingHorizontal: s(24),
       paddingTop: isWeb ? s(24) : insetTop + s(14),
@@ -650,5 +654,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       fontSize: s(13),
       color: colors.text,
     },
-  });
+  }, dark));
 }

@@ -1,22 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Stack, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/services/api';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
 type FieldKey = 'name' | 'email' | 'phone';
@@ -70,6 +75,7 @@ export default function AccountScreen() {
       layout.insetTop,
       layout.insetBottom,
       layout.isWeb,
+      layout.dark,
     ],
   );
 
@@ -176,7 +182,7 @@ export default function AccountScreen() {
                 <Ionicons
                   name="chevron-back"
                   size={s(22)}
-                  color={colors.text}
+                  color={tx(colors.text)}
                 />
               </Pressable>
 
@@ -189,17 +195,24 @@ export default function AccountScreen() {
             <View style={styles.profileCard}>
               <View>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {getInitials(form.name)}
-                  </Text>
+                  {photo ? (
+                    <Image
+                      source={{ uri: photo }}
+                      style={styles.avatarImage}
+                      accessibilityLabel="Foto de perfil"
+                    />
+                  ) : (
+                    <Text style={styles.avatarText}>
+                      {getInitials(form.name)}
+                    </Text>
+                  )}
                 </View>
 
                 <Pressable
                   style={styles.cameraBadge}
                   accessibilityRole="button"
                   accessibilityLabel="Trocar foto de perfil"
-                  // TODO: abrir câmera/galeria (expo-image-picker)
-                  onPress={() => {}}
+                  onPress={changePhoto}
                 >
                   <Ionicons name="camera-outline" size={s(14)} color="#FFFFFF" />
                 </Pressable>
@@ -215,8 +228,7 @@ export default function AccountScreen() {
 
                 <Pressable
                   accessibilityRole="button"
-                  // TODO: abrir câmera/galeria (expo-image-picker)
-                  onPress={() => {}}
+                  onPress={changePhoto}
                   hitSlop={8}
                 >
                   <Text style={styles.changePhoto}>Trocar foto de perfil</Text>
@@ -282,6 +294,7 @@ export default function AccountScreen() {
               style={styles.passwordCard}
               accessibilityRole="button"
               accessibilityLabel="Alterar senha. Atualize sua senha de acesso"
+              // TODO: abrir a tela de alterar senha
               onPress={() => router.push('/alterar-senha')}
             >
               <View style={styles.passwordIcon}>
@@ -302,7 +315,7 @@ export default function AccountScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={s(18)}
-                color={colors.text}
+                color={tx(colors.text)}
               />
             </Pressable>
 
@@ -358,10 +371,10 @@ export default function AccountScreen() {
    ESTILOS (dependem do tamanho da tela)
 ============================================================ */
 
-function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
+function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
   const border = '#D2E8E3';
 
-  return StyleSheet.create({
+  return StyleSheet.create(themed({
     flex: {
       flex: 1,
     },
@@ -430,6 +443,12 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
+    },
+
+    avatarImage: {
+      width: '100%',
+      height: '100%',
     },
 
     avatarText: {
@@ -618,5 +637,5 @@ function makeStyles({ s, isWeb, insetTop, navHeight }: Layout) {
       fontSize: s(13),
       color: ui.signOut,
     },
-  });
+  }, dark));
 }

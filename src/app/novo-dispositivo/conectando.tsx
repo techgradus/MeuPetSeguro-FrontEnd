@@ -1,20 +1,24 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { DeviceFlowLayout } from '@/components/devices/DeviceFlowLayout';
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
 import { errorMessage } from '@/services/api';
+import { themed } from '@/constants/darkTheme';
+import { colors, fonts, radius, spacing } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { deviceService } from '@/services/deviceService';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
-import { colors, fonts, radius, spacing } from '@/constants/petTheme';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const STEPS = ['Dispositivo encontrado', 'Rede identificada', 'Finalizando conexão'];
 
 /** Anel girando com o ícone de Wi-Fi no centro. */
 function ConnectingRing() {
   const spin = useRef(new Animated.Value(0)).current;
+  const { dark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -38,6 +42,8 @@ function ConnectingRing() {
 
 export default function ConnectingScreen() {
   const router = useRouter();
+  const { dark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
   const draft = newDeviceDraft.get();
   const [done, setDone] = useState(0); // quantos itens do checklist já foram concluídos
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +130,7 @@ export default function ConnectingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   center: { alignItems: 'center', marginBottom: spacing.lg },
   ringBox: { width: 150, height: 150, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
   ring: {
@@ -152,4 +158,4 @@ const styles = StyleSheet.create({
   errorBox: { marginTop: spacing.lg },
   skip: { alignSelf: 'center', marginTop: spacing.md },
   skipText: { fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
-});
+}, dark));

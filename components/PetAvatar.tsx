@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, Text, View } from 'react-native';
 
 import type { Pet } from '@/data/pets';
+import { useAppTheme } from '@/hooks/useAppTheme';
 
 type Props = {
   pet: Pet;
@@ -12,6 +13,7 @@ type Props = {
 
 /** Mostra a foto do pet; se não houver foto, mostra o emoji. */
 export default function PetAvatar({ pet, size, radius, emojiSize }: Props) {
+  const { bg } = useAppTheme();
   const box = { width: size, height: size, borderRadius: radius };
 
   if (pet.photo) {
@@ -23,7 +25,7 @@ export default function PetAvatar({ pet, size, radius, emojiSize }: Props) {
       style={[
         box,
         {
-          backgroundColor: '#F1F1F1',
+          backgroundColor: bg('#F1F1F1'),
           alignItems: 'center',
           justifyContent: 'center',
         },

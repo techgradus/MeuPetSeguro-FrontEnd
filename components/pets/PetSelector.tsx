@@ -1,12 +1,17 @@
-import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Pet } from '@/types/pet';
+import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius } from '@/constants/petTheme';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { Pet } from '@/types/pet';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type Props = { pets: Pet[]; selectedId: string; onSelect: (id: string) => void };
 
 export function PetSelector({ pets, selectedId, onSelect }: Props) {
+  const { dark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(dark), [dark]);
+
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
       {pets.map((pet) => {
@@ -39,20 +44,21 @@ export function PetSelector({ pets, selectedId, onSelect }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: { gap: 12, paddingVertical: 2 },
-  card: {
-    minWidth: 150, flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 10, borderRadius: radius.md,
-  },
-  cardSelected: { backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.primary },
-  cardIdle: { backgroundColor: colors.primaryLight, borderWidth: 1.5, borderColor: 'transparent' },
-  thumb: {
-    width: 36, height: 36, borderRadius: 10, overflow: 'hidden',
-    backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center',
-  },
-  thumbImg: { width: '100%', height: '100%' },
-  info: { flex: 1 },
-  name: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
-  species: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted },
-});
+const makeStyles = (dark: boolean) =>
+  StyleSheet.create(themed({
+    row: { gap: 12, paddingVertical: 2 },
+    card: {
+      minWidth: 150, flexDirection: 'row', alignItems: 'center', gap: 10,
+      padding: 10, borderRadius: radius.md,
+    },
+    cardSelected: { backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.primary },
+    cardIdle: { backgroundColor: colors.primaryLight, borderWidth: 1.5, borderColor: 'transparent' },
+    thumb: {
+      width: 36, height: 36, borderRadius: 10, overflow: 'hidden',
+      backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center',
+    },
+    thumbImg: { width: '100%', height: '100%' },
+    info: { flex: 1 },
+    name: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
+    species: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted },
+  }, dark));
