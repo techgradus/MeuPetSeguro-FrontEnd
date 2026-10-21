@@ -22,7 +22,7 @@ SplashScreen.preventAutoHideAsync();
 const SHOW_PHONE_FRAME_ON_WEB = true;
 
 // Telas que podem ser abertas SEM estar logado. Qualquer outra rota exige login.
-const PUBLIC_ROUTES = ['login', 'forgot-password'];
+const PUBLIC_ROUTES = ['login', 'cadastro', 'forgot-password'];
 
 /** No navegador, mostra o app em uma moldura do tamanho de um celular. Em celular de verdade não faz nada. */
 function WebPhoneFrame({ children }: { children: ReactNode }) {

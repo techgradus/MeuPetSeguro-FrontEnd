@@ -3,6 +3,8 @@ import { session, type SessionUser } from '@/services/session';
 
 export type SignInPayload = { email: string; password: string };
 
+export type SignUpPayload = { name: string; email: string; password: string; phone?: string };
+
 export type UpdateProfilePayload = { name?: string; email?: string; phone?: string | null };
 
 type LoginResponse = { user: SessionUser; token: string };
@@ -25,6 +27,13 @@ export const authService = {
       if (e instanceof ApiError && e.status === 401) throw new Error(INVALID_CREDENTIALS);
       throw e;
     }
+  },
+
+  async register({ name, email, password, phone }: SignUpPayload): Promise<void> {
+    await api('/auth/register', {
+      method: 'POST',
+      body: { name, email, password, ...(phone ? { phone } : {}) },
+    });
   },
 
   async signOut(): Promise<void> {
