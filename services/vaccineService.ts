@@ -1,74 +1,105 @@
-import { NewVaccineInput, Vaccine } from '@/types/vaccine';
+import { api, ApiError } from '@/services/api';
+import type { NewVaccineInput, Vaccine, VaccineStatus } from '@/types/vaccine';
+import { todayIso } from '@/utils/dateFormat';
 
-/**
- * Camada de dados da carteira de vacinação (MOCK, em memória).
- * Ao integrar o back-end, troque o corpo destas funções por chamadas à API.
- */
-const STORE: Record<string, Vaccine[]> = {
-  rex: [
-    { id: 'v-rex-1', petId: 'rex', name: 'V10 (múltipla)', appliedAt: '2026-03-10', nextDoseAt: '2027-03-10', status: 'Em dia' },
-    { id: 'v-rex-2', petId: 'rex', name: 'Antirrábica', appliedAt: '2026-01-15', nextDoseAt: '2027-01-15', status: 'Em dia' },
-    { id: 'v-rex-3', petId: 'rex', name: 'Giárdia', appliedAt: '2025-10-25', nextDoseAt: '2026-10-25', status: 'Próxima do vencimento' },
-    { id: 'v-rex-4', petId: 'rex', name: 'Leishmaniose', appliedAt: '2025-09-01', nextDoseAt: '2026-09-01', status: 'Atrasada' },
-  ],
-  mia: [
-    { id: 'v-mia-1', petId: 'mia', name: 'V4 Felina', appliedAt: '2026-05-18', nextDoseAt: '2027-05-18', status: 'Em dia' },
-    { id: 'v-mia-2', petId: 'mia', name: 'Antirrábica', appliedAt: '2026-01-22', nextDoseAt: '2027-01-22', status: 'Em dia' },
-    { id: 'v-mia-3', petId: 'mia', name: 'Leucemia Felina', appliedAt: '2025-09-29', nextDoseAt: '2026-09-29', status: 'Próxima do vencimento' },
-  ],
+
+type ApiVaccine = {
+  id: string;
+  petId: string;
+  name: string;
+  appliedAt: string;
+  nextDoseAt: string | null;
+  notes: string | null;
 };
 
-const fakeDelay = (ms = 500) => new Promise<void>((res) => setTimeout(res, ms));
+const DUE_SOON_DAYS = 7;
 
-const sortRecentFirst = (list: Vaccine[]) =>
-  [...list].sort((a, b) => b.appliedAt.localeCompare(a.appliedAt));
+const dateOnly = (iso: string) => iso.slice(0, 10);
+
+function daysBetween(fromIso: string, toIso: string): number {
+  const [fy, fm, fd] = fromIso.split('-').map(Number);
+  const [ty, tm, td] = toIso.split('-').map(Number);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000);
+}
+
+function statusOf(v: ApiVaccine, all: ApiVaccine[], today: string): VaccineStatus {
+  if (!v.nextDoseAt) return 'Em dia';
+
+  const name = v.name.trim().toLowerCase();
+  const superseded = all.some(
+    (o) => o.id !== v.id && o.name.trim().toLowerCase() === name && o.appliedAt > v.appliedAt,
+  );
+  if (superseded) return 'Em dia';
+
+  const days = daysBetween(today, dateOnly(v.nextDoseAt));
+  if (days < 0) return 'Atrasada';
+  if (days <= DUE_SOON_DAYS) return 'Próxima do vencimento';
+  return 'Em dia';
+}
+
+function fromApi(v: ApiVaccine, all: ApiVaccine[], today: string): Vaccine {
+  return {
+    id: v.id,
+    petId: v.petId,
+    name: v.name,
+    appliedAt: dateOnly(v.appliedAt),
+    nextDoseAt: v.nextDoseAt ? dateOnly(v.nextDoseAt) : undefined,
+    status: statusOf(v, all, today),
+    notes: v.notes || undefined,
+  };
+}
 
 export const vaccineService = {
   async list(petId: string): Promise<Vaccine[]> {
-    // TODO: GET /pets/:id/vaccines
-    return sortRecentFirst(STORE[petId] ?? []);
+    const list = await api<ApiVaccine[]>(`/pets/${petId}/vaccines`, { auth: true });
+    const today = todayIso();
+    return list.map((v) => fromApi(v, list, today));
   },
 
   async get(id: string): Promise<Vaccine | undefined> {
-    // TODO: GET /vaccines/:id
-    return Object.values(STORE).flat().find((v) => v.id === id);
-  },
-
-  async update(id: string, input: NewVaccineInput): Promise<void> {
-    // TODO: PUT /vaccines/:id
-    await fakeDelay();
-    for (const petId of Object.keys(STORE)) {
-      const index = STORE[petId].findIndex((v) => v.id === id);
-      if (index >= 0) {
-        STORE[petId][index] = { ...STORE[petId][index], ...input };
-        return;
-      }
-    }
-  },
-
-  async remove(id: string): Promise<void> {
-    // TODO: DELETE /vaccines/:id
-    await fakeDelay(300);
-    for (const petId of Object.keys(STORE)) {
-      STORE[petId] = STORE[petId].filter((v) => v.id !== id);
+    try {
+      const vaccine = await api<ApiVaccine>(`/vaccines/${id}`, { auth: true });
+      const all = await api<ApiVaccine[]>(`/pets/${vaccine.petId}/vaccines`, { auth: true });
+      return fromApi(vaccine, all, todayIso());
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 404 || e.status === 403)) return undefined;
+      throw e;
     }
   },
 
   async add(petId: string, input: NewVaccineInput): Promise<Vaccine> {
-    // TODO: POST /pets/:id/vaccines
-    await fakeDelay();
-    const vaccine: Vaccine = { id: `v-${Date.now()}`, petId, ...input };
-    STORE[petId] = [...(STORE[petId] ?? []), vaccine];
-    return vaccine;
+    const vaccine = await api<ApiVaccine>(`/pets/${petId}/vaccines`, {
+      method: 'POST',
+      body: {
+        name: input.name,
+        appliedAt: input.appliedAt,
+        nextDoseAt: input.nextDoseAt,
+        notes: input.notes,
+      },
+      auth: true,
+    });
+    return fromApi(vaccine, [vaccine], todayIso());
   },
 
-  /**
-   * Resumo para o cartão "Carteira de Vacinação" de Meus Pets.
-   * Se o pet ainda não tem registros, usa os valores informados em `fallback`.
-   */
-  summary(petId: string, fallback: { upToDate: number; pending: number }) {
-    const list = STORE[petId];
-    if (!list) return fallback;
+  async update(id: string, input: NewVaccineInput): Promise<void> {
+    await api(`/vaccines/${id}`, {
+      method: 'PUT',
+      body: {
+        name: input.name,
+        appliedAt: input.appliedAt,
+        nextDoseAt: input.nextDoseAt ?? null, // null apaga a próxima dose
+        notes: input.notes ?? '',
+      },
+      auth: true,
+    });
+  },
+
+  async remove(id: string): Promise<void> {
+    await api(`/vaccines/${id}`, { method: 'DELETE', auth: true });
+  },
+
+  /** Resumo para o cartão "Carteira de Vacinação" de Meus pets. */
+  summarize(list: Vaccine[]) {
     const upToDate = list.filter((v) => v.status === 'Em dia').length;
     return { upToDate, pending: list.length - upToDate };
   },

@@ -1,40 +1,95 @@
-/**
- * Camada de autenticação (MOCK).
- * Quando o back-end estiver pronto, apague TEST_CREDENTIALS e troque o corpo
- * destas funções por chamadas reais à API. As telas não precisam mudar.
- */
+import { api, ApiError } from '@/services/api';
+import { session, type SessionUser } from '@/services/session';
+import { appendPhoto } from '@/utils/appendPhoto';
+
 export type SignInPayload = { email: string; password: string };
 
-// ⚠️ APENAS PARA TESTE — remover ao integrar o back-end.
-export const TEST_CREDENTIALS = {
-  email: 'teste@meupetseguro.com',
-  password: '123456',
-};
+export type SignUpPayload = { name: string; email: string; password: string; phone?: string };
+
+export type UpdateProfilePayload = { name?: string; email?: string; phone?: string | null };
+
+type LoginResponse = { user: SessionUser; token: string };
 
 export const INVALID_CREDENTIALS = 'INVALID_CREDENTIALS';
 export const INVALID_CURRENT_PASSWORD = 'INVALID_CURRENT_PASSWORD';
 
-const fakeDelay = (ms = 900) => new Promise<void>((res) => setTimeout(res, ms));
+const BACKEND_WRONG_CURRENT_PASSWORD = 'Senha atual incorreta';
 
 export const authService = {
-  async signIn({ email, password }: SignInPayload): Promise<void> {
-    // TODO: POST /auth/login
-    await fakeDelay();
-    const ok =
-      email.trim().toLowerCase() === TEST_CREDENTIALS.email &&
-      password === TEST_CREDENTIALS.password;
-    if (!ok) throw new Error(INVALID_CREDENTIALS);
+  async signIn({ email, password }: SignInPayload): Promise<SessionUser> {
+    try {
+      const { token, user } = await api<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: { email, password },
+      });
+      await session.save(token, user);
+      return user;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) throw new Error(INVALID_CREDENTIALS);
+      throw e;
+    }
   },
 
-  async requestPasswordReset(_email: string): Promise<void> {
-    // TODO: POST /auth/forgot-password
-    await fakeDelay();
+  async register({ name, email, password, phone }: SignUpPayload): Promise<void> {
+    await api('/auth/register', {
+      method: 'POST',
+      body: { name, email, password, ...(phone ? { phone } : {}) },
+    });
+  },
+
+  async signOut(): Promise<void> {
+    await session.clear();
+  },
+
+  async getMe(): Promise<SessionUser> {
+    return api<SessionUser>('/auth/me', { auth: true });
+  },
+
+  async updateProfile(payload: UpdateProfilePayload): Promise<SessionUser> {
+    const user = await api<SessionUser>('/auth/me', { method: 'PUT', body: payload, auth: true });
+    await session.saveUser(user);
+    return user;
+  },
+
+  async updatePhoto(photoUri: string): Promise<SessionUser> {
+    const form = new FormData();
+    await appendPhoto(form, photoUri);
+    const user = await api<SessionUser>('/auth/me/photo', {
+      method: 'PUT',
+      body: form,
+      auth: true,
+      timeoutMs: 30000,
+    });
+    await session.saveUser(user);
+    return user;
+  },
+
+  async removePhoto(): Promise<SessionUser> {
+    const user = await api<SessionUser>('/auth/me/photo', { method: 'DELETE', auth: true });
+    await session.saveUser(user);
+    return user;
+  },
+
+  async requestPasswordReset(email: string): Promise<void> {
+    await api('/auth/forgot-password', { method: 'POST', body: { email } });
+  },
+
+  async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+    await api('/auth/reset-password', { method: 'POST', body: { email, code, newPassword } });
   },
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    // TODO: POST /auth/change-password
-    await fakeDelay();
-    if (currentPassword !== TEST_CREDENTIALS.password) throw new Error(INVALID_CURRENT_PASSWORD);
-    TEST_CREDENTIALS.password = newPassword; // MOCK: vale só até recarregar o app
+    try {
+      await api('/auth/change-password', {
+        method: 'PUT',
+        body: { currentPassword, newPassword },
+        auth: true,
+      });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 400 && e.message === BACKEND_WRONG_CURRENT_PASSWORD) {
+        throw new Error(INVALID_CURRENT_PASSWORD);
+      }
+      throw e;
+    }
   },
 };

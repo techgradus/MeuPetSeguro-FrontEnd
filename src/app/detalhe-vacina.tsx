@@ -9,10 +9,12 @@ import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { errorMessage } from '@/services/api';
 import { petService } from '@/services/petService';
 import { vaccineService } from '@/services/vaccineService';
 import { Vaccine, VaccineStatus } from '@/types/vaccine';
 import { isoToBr } from '@/utils/dateFormat';
+import { notify } from '@/utils/dialogs';
 
 const STATUS_STYLE: Record<VaccineStatus, { bg: string; fg: string }> = {
   'Em dia': { bg: ui.tealSoft, fg: colors.primary },
@@ -29,6 +31,7 @@ export default function VaccineDetailScreen() {
   const [vaccine, setVaccine] = useState<Vaccine | null>(null);
   const [petName, setPetName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -47,12 +50,18 @@ export default function VaccineDetailScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const found = vaccineId ? await vaccineService.get(vaccineId) : undefined;
-        const pets = await petService.list();
-        if (!active) return;
-        setVaccine(found ?? null);
-        setPetName(pets.find((p) => p.id === found?.petId)?.name ?? '');
-        setLoading(false);
+        try {
+          const found = vaccineId ? await vaccineService.get(vaccineId) : undefined;
+          const pets = await petService.list();
+          if (!active) return;
+          setVaccine(found ?? null);
+          setPetName(pets.find((p) => p.id === found?.petId)?.name ?? '');
+          setLoadError(null);
+        } catch (e) {
+          if (active) setLoadError(errorMessage(e, 'Não foi possível carregar a vacina.'));
+        } finally {
+          if (active) setLoading(false);
+        }
       })();
       return () => {
         active = false;
@@ -77,6 +86,9 @@ export default function VaccineDetailScreen() {
       await vaccineService.remove(vaccine.id);
       setConfirmOpen(false);
       goBack(); // a carteira recarrega ao voltar ao foco
+    } catch (e) {
+      setConfirmOpen(false);
+      notify('Não foi possível remover', errorMessage(e, 'Tente novamente em instantes.'));
     } finally {
       setDeleting(false);
     }
@@ -113,7 +125,7 @@ export default function VaccineDetailScreen() {
             <ActivityIndicator color={colors.primary} style={{ marginTop: s(40) }} />
           ) : !vaccine ? (
             <View style={styles.notFound}>
-              <Text style={styles.notFoundText}>Esta vacina não foi encontrada.</Text>
+              <Text style={styles.notFoundText}>{loadError ?? 'Esta vacina não foi encontrada.'}</Text>
               <Pressable onPress={goBack} hitSlop={8}>
                 <Text style={styles.link}>Voltar para a carteira</Text>
               </Pressable>

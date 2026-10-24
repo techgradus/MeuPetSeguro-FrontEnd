@@ -1,15 +1,16 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PetAvatar from '@/components/PetAvatar';
 import PhoneFrame from '@/components/PhoneFrame';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
-import { AlertKind, alerts as initialAlerts, PetAlert } from '@/data/alerts';
-import { PetId, petIds, pets } from '@/data/pets';
+import type { AlertKind, PetAlert } from '@/data/alerts';
+import { useAlerts } from '@/hooks/useAlerts';
+import { useDashboardPets } from '@/hooks/useDashboardPets';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
@@ -52,14 +53,14 @@ const KIND_STYLE: Record<AlertKind, KindStyle> = {
       <MaterialCommunityIcons name="robot-outline" size={size} color={color} />
     ),
   },
-  camera: {
+  device: {
     color: '#E8604F',
     background: '#FFE1DA',
     icon: (size, color) => (
       <MaterialCommunityIcons name="wifi-off" size={size} color={color} />
     ),
   },
-  meal: {
+  food: {
     color: '#E08E00',
     background: '#FFE9CC',
     icon: (size, color) => (
@@ -75,7 +76,7 @@ const KIND_STYLE: Record<AlertKind, KindStyle> = {
   },
 };
 
-type PetFilter = 'all' | PetId;
+type PetFilter = string; // 'all' ou o id de um pet
 type ReadFilter = 'all' | 'unread';
 
 /* ============================================================
@@ -84,7 +85,8 @@ type ReadFilter = 'all' | 'unread';
 
 export default function AlertsScreen() {
   const { bg } = useAppTheme();
-  const [items, setItems] = useState<PetAlert[]>(initialAlerts);
+  const { alerts: items, loading, error, markAsRead, markAllAsRead: markAll } = useAlerts();
+  const { pets } = useDashboardPets();
   const [petFilter, setPetFilter] = useState<PetFilter>('all');
   const [readFilter, setReadFilter] = useState<ReadFilter>('all');
 
@@ -115,20 +117,9 @@ export default function AlertsScreen() {
   const visible =
     readFilter === 'unread' ? byPet.filter((alert) => !alert.read) : byPet;
 
+  // Marca como lidos os alertas do filtro atual (todos os pets ou só o selecionado)
   function markAllAsRead() {
-    setItems((current) =>
-      current.map((alert) =>
-        matchesPet(alert) ? { ...alert, read: true } : alert,
-      ),
-    );
-  }
-
-  function markAsRead(id: string) {
-    setItems((current) =>
-      current.map((alert) =>
-        alert.id === id ? { ...alert, read: true } : alert,
-      ),
-    );
+    markAll(petFilter === 'all' ? undefined : petFilter);
   }
 
   return (
@@ -184,7 +175,8 @@ export default function AlertsScreen() {
               </Text>
             </Pressable>
 
-            {petIds.map((id) => {
+            {pets.map((petItem) => {
+              const id = petItem.id;
               const selected = petFilter === id;
 
               return (
@@ -196,7 +188,7 @@ export default function AlertsScreen() {
                   accessibilityState={{ selected }}
                 >
                   <PetAvatar
-                    pet={pets[id]}
+                    pet={petItem}
                     size={s(22)}
                     radius={s(11)}
                     emojiSize={s(12)}
@@ -208,7 +200,7 @@ export default function AlertsScreen() {
                       selected && styles.chipTextSelected,
                     ]}
                   >
-                    {pets[id].name}
+                    {petItem.name}
                   </Text>
                 </Pressable>
               );
@@ -270,7 +262,9 @@ export default function AlertsScreen() {
           </View>
 
           {/* LISTA */}
-          {visible.length === 0 ? (
+          {loading && items.length === 0 ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: s(32) }} />
+          ) : visible.length === 0 ? (
             <View style={styles.empty}>
               <View style={styles.emptyIcon}>
                 <Ionicons
@@ -279,16 +273,19 @@ export default function AlertsScreen() {
                   color={colors.primary}
                 />
               </View>
-              <Text style={styles.emptyTitle}>Tudo em dia</Text>
+              <Text style={styles.emptyTitle}>
+                {error ? 'Não foi possível carregar' : 'Tudo em dia'}
+              </Text>
               <Text style={styles.emptyText}>
-                Você não tem alertas {readFilter === 'unread' ? 'não lidos ' : ''}
-                por aqui.
+                {error ??
+                  `Você não tem alertas ${readFilter === 'unread' ? 'não lidos ' : ''}por aqui.`}
               </Text>
             </View>
           ) : (
             visible.map((alert) => {
               const kind = KIND_STYLE[alert.kind];
-              const pet = pets[alert.petId];
+              const pet = pets.find((p) => p.id === alert.petId);
+              if (!pet) return null;
 
               return (
                 <Pressable

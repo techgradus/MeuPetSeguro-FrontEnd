@@ -1,9 +1,13 @@
 import { Button } from '@/components/ui/Button';
+import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { TextField } from '@/components/ui/TextField';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { useAuth } from '@/hooks/useAuth';
+import { ApiError, errorMessage } from '@/services/api';
+import { authService } from '@/services/authService';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -48,18 +52,41 @@ export default function SignUpScreen() {
   const [confirm, setConfirm] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const { signIn } = useAuth();
 
   const clear = (key: keyof Errors) => setErrors((e) => ({ ...e, [key]: undefined }));
 
   const submit = async () => {
     const found = validate({ name, email, phone, password, confirm });
     setErrors(found);
+    setFormError(null);
     if (Object.keys(found).length) return;
+
+    const cleanEmail = email.trim();
 
     try {
       setSaving(true);
-      // TODO: chamar a API de cadastro (nome, e-mail, telefone, senha)
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await authService.register({
+        name: name.trim(),
+        email: cleanEmail,
+        password,
+        phone: phone.replace(/\D/g, '') || undefined,
+      });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        setErrors({ email: 'Este e-mail já está cadastrado.' });
+      } else {
+        setFormError(errorMessage(e, 'Não foi possível criar a conta. Tente novamente.'));
+      }
+      setSaving(false);
+      return;
+    }
+
+    try {
+      await signIn({ email: cleanEmail, password });
+      router.replace('/splash');
+    } catch {
       router.replace(LOGIN_ROUTE);
     } finally {
       setSaving(false);
@@ -73,6 +100,8 @@ export default function SignUpScreen() {
     <ScreenContainer>
       <Text style={styles.title}>Crie sua conta</Text>
       <Text style={styles.subtitle}>Cadastre-se para acompanhar quem você mais ama.</Text>
+
+      {!!formError && <FeedbackBanner type="error" message={formError} />}
 
       <TextField
         label="Nome"

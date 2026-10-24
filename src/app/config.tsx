@@ -16,20 +16,12 @@ import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { useAuth } from '@/hooks/useAuth';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
-import { useProfilePhoto } from '@/hooks/useProfilephoto';
+import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
+import { newPetDraft } from '@/services/newPetDraft';
 
-/* ============================================================
-   DADOS MOCK
-   Quando existir login/API, troque por dados do usuário real.
-============================================================ */
-
-const user = {
-  initials: 'AM',
-  name: 'Arthur Mendonça',
-  email: 'arthur@meupetseguro.app',
-};
 
 // Rota da tela de adicionar pet. Ajuste se o arquivo tiver outro nome.
 const ADD_PET_ROUTE = '/novo-pet';
@@ -50,11 +42,21 @@ type RowProps = {
    TELA
 ============================================================ */
 
+function getInitials(name?: string) {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const first = parts[0][0];
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
 
+  const { user, signOut: logout } = useAuth();
   const { dark, setDark, bg, tx } = useAppTheme();
   const photo = useProfilePhoto();
+  const initials = getInitials(user?.name);
 
   // TODO: ligar às permissões de notificação do aparelho
   const [notifications, setNotifications] = useState(true);
@@ -75,6 +77,11 @@ export default function SettingsScreen() {
     ],
   );
 
+  function addPet() {
+    newPetDraft.reset();
+    router.push(ADD_PET_ROUTE);
+  }
+
   function openDevices() {
     // abre o assistente de novo dispositivo e, ao concluir, volta para Config
     newDeviceDraft.reset();
@@ -86,8 +93,8 @@ export default function SettingsScreen() {
     router.push('/minha-conta');
   }
 
-  function signOut() {
-    // TODO: limpar a sessão do usuário antes de voltar ao login
+  async function signOut() {
+    await logout();
     router.replace('/login');
   }
 
@@ -168,19 +175,19 @@ export default function SettingsScreen() {
             style={styles.profileCard}
             onPress={openAccount}
             accessibilityRole="button"
-            accessibilityLabel={`${user.name}. Abrir minha conta`}
+            accessibilityLabel={`${user?.name}. Abrir minha conta`}
           >
             <View style={styles.avatar}>
               {photo ? (
                 <Image source={{ uri: photo }} style={styles.avatarImage} />
               ) : (
-                <Text style={styles.avatarText}>{user.initials}</Text>
+                <Text style={styles.avatarText}>{initials}</Text>
               )}
             </View>
 
             <View style={styles.rowText}>
-              <Text style={styles.profileName}>{user.name}</Text>
-              <Text style={styles.profileEmail}>{user.email}</Text>
+              <Text style={styles.profileName}>{user?.name}</Text>
+              <Text style={styles.profileEmail}>{user?.email}</Text>
             </View>
 
             <Ionicons
@@ -232,7 +239,7 @@ export default function SettingsScreen() {
               icon="wifi-outline"
               title="Dispositivos"
               subtitle="Adicionar ou gerenciar"
-              onPress={() => router.push('/novo-dispositivo/concluido')}
+              onPress={openDevices}
 
               divider
             />
@@ -241,7 +248,7 @@ export default function SettingsScreen() {
               icon="paw-outline"
               title="Adicionar novo pet"
               subtitle="Cadastre e conecte um dispositivo"
-              onPress={() => router.push(ADD_PET_ROUTE)}
+              onPress={addPet}
               divider
             />
 

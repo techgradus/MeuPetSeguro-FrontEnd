@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Stack, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,6 +22,8 @@ import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { petService } from '@/services/petService';
+import type { Species as PetSpecies } from '@/types/pet';
 
 /* ============================================================
    FLUXO "NOVO PET" (4 etapas)
@@ -53,6 +59,9 @@ export default function NewPetScreen() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<Form>(emptyForm);
   const [focused, setFocused] = useState<keyof Form | null>(null);
+  const [photoUri, setPhotoUri] = useState<string | undefined>();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const layout = useLayout();
   const { tx } = useAppTheme();
@@ -79,7 +88,10 @@ export default function NewPetScreen() {
   }
 
   function goBack() {
+    if (saving) return;
+
     if (step > 1 && step < TOTAL_STEPS) {
+      setError(null);
       setStep(step - 1);
     } else if (router.canGoBack()) {
       router.back();
@@ -88,9 +100,80 @@ export default function NewPetScreen() {
     }
   }
 
+  async function register() {
+    if (saving) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      await petService.add({
+        name: form.name,
+        species: form.species as PetSpecies,
+        breed: form.breed,
+        age: form.age,
+        weight: form.weight,
+        notes: form.notes,
+        photoUri,
+      });
+      setStep(4);
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message
+          ? e.message
+          : 'Não foi possível cadastrar o pet. Tente novamente.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function finish() {
-    // TODO: salvar o pet na API / estado compartilhado
     router.replace('/meus-pets');
+  }
+
+  async function pickFromLibrary() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+  }
+
+  async function pickFromCamera() {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        'Permissão necessária',
+        'Permita o acesso à câmera nas configurações do aparelho.',
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+  }
+
+  function choosePhoto() {
+    if (Platform.OS === 'web') {
+      pickFromLibrary();
+      return;
+    }
+
+    Alert.alert('Adicionar foto', undefined, [
+      { text: 'Câmera', onPress: pickFromCamera },
+      { text: 'Galeria', onPress: pickFromLibrary },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   }
 
   const summary = [
@@ -158,7 +241,7 @@ export default function NewPetScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -218,16 +301,24 @@ export default function NewPetScreen() {
                   style={styles.photoBox}
                   accessibilityRole="button"
                   accessibilityLabel="Adicionar foto"
-                  // TODO: abrir câmera/galeria (expo-image-picker)
-                  onPress={() => {}}
+                  onPress={choosePhoto}
                 >
-                  <Ionicons
-                    name="camera-outline"
-                    size={s(26)}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.photoTitle}>Adicionar foto</Text>
-                  <Text style={styles.photoHint}>Câmera ou galeria</Text>
+                  {photoUri ? (
+                    <Image
+                      source={{ uri: photoUri }}
+                      style={styles.photoImage}
+                    />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="camera-outline"
+                        size={s(26)}
+                        color={colors.primary}
+                      />
+                      <Text style={styles.photoTitle}>Adicionar foto</Text>
+                      <Text style={styles.photoHint}>Câmera ou galeria</Text>
+                    </>
+                  )}
                 </Pressable>
 
                 {input('name', 'Nome', { placeholder: 'Ex.: Nina' })}
@@ -330,20 +421,32 @@ export default function NewPetScreen() {
                 </View>
 
                 <Pressable
-                  style={styles.primary}
-                  onPress={() => setStep(3)}
+                  style={[styles.primary, saving && styles.disabled]}
+                  onPress={() => {
+                    setError(null);
+                    setStep(3);
+                  }}
+                  disabled={saving}
                   accessibilityRole="button"
                 >
                   <Text style={styles.primaryText}>Conectar agora</Text>
                 </Pressable>
 
                 <Pressable
-                  style={styles.secondary}
-                  onPress={() => setStep(4)}
+                  style={[styles.secondary, saving && styles.disabled]}
+                  onPress={register}
+                  disabled={saving}
                   accessibilityRole="button"
+                  accessibilityState={{ busy: saving }}
                 >
-                  <Text style={styles.secondaryText}>Vincular depois</Text>
+                  {saving ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <Text style={styles.secondaryText}>Vincular depois</Text>
+                  )}
                 </Pressable>
+
+                {error && <Text style={styles.error}>{error}</Text>}
               </>
             )}
 
@@ -367,22 +470,29 @@ export default function NewPetScreen() {
                 </View>
 
                 <Pressable
-                  style={styles.primary}
-                  // TODO: abrir o assistente "Novo dispositivo" quando a tela
-                  // existir e voltar para a etapa 4 ao concluir
-                  onPress={() => setStep(4)}
+                  style={[styles.primary, saving && styles.disabled]}
+                  onPress={register}
+                  disabled={saving}
                   accessibilityRole="button"
+                  accessibilityState={{ busy: saving }}
                 >
-                  <Text style={styles.primaryText}>Abrir assistente</Text>
+                  {saving ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryText}>Abrir assistente</Text>
+                  )}
                 </Pressable>
 
                 <Pressable
-                  style={styles.secondary}
-                  onPress={() => setStep(4)}
+                  style={[styles.secondary, saving && styles.disabled]}
+                  onPress={register}
+                  disabled={saving}
                   accessibilityRole="button"
                 >
                   <Text style={styles.secondaryText}>Vincular depois</Text>
                 </Pressable>
+
+                {error && <Text style={styles.error}>{error}</Text>}
               </>
             )}
 
@@ -594,6 +704,12 @@ function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
       alignItems: 'center',
       justifyContent: 'center',
       marginVertical: s(20),
+      overflow: 'hidden',
+    },
+
+    photoImage: {
+      width: '100%',
+      height: '100%',
     },
 
     photoTitle: {
@@ -746,6 +862,14 @@ function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
       color: '#7E8C8A',
       textAlign: 'center',
       marginTop: s(8),
+    },
+
+    error: {
+      fontFamily: fonts.medium,
+      fontSize: s(12),
+      color: '#C0392B',
+      textAlign: 'center',
+      marginTop: s(10),
     },
 
     /* ETAPA 2 */

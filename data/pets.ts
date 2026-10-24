@@ -1,14 +1,9 @@
 import { ImageSourcePropType } from 'react-native';
 
-/*
- * Dados mock dos pets, usados por Início, Atividade e pelas
- * demais telas. Quando existir API/serviço, troque aqui.
- */
-
 export type PetId = 'Rex' | 'Mia';
 
 export type Pet = {
-  id: PetId;
+  id: string;
   name: string;
   type: string;
   breed: string;

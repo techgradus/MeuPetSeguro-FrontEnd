@@ -6,7 +6,9 @@ import { NewPetLayout, StepKicker, StepSubtitle, StepTitle } from '@/components/
 import { Button } from '@/components/ui/Button';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { newPetDraft } from '@/services/newPetDraft';
+import { errorMessage } from '@/services/api';
 import { petService } from '@/services/petService';
+import { notify } from '@/utils/dialogs';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 
 /** Ilustração do colar/pote inteligente com Wi-Fi. */
@@ -34,6 +36,8 @@ export default function ConnectDeviceScreen() {
       setSaving(true);
       await petService.add(draft);
       router.replace('/novo-pet/concluido');
+    } catch (e) {
+      notify('Não foi possível cadastrar', errorMessage(e, 'Tente novamente em instantes.'));
     } finally {
       setSaving(false);
     }

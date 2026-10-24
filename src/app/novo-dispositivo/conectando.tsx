@@ -1,4 +1,7 @@
 import { DeviceFlowLayout } from '@/components/devices/DeviceFlowLayout';
+import { Button } from '@/components/ui/Button';
+import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
+import { errorMessage } from '@/services/api';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
@@ -43,6 +46,8 @@ export default function ConnectingScreen() {
   const styles = useMemo(() => makeStyles(dark), [dark]);
   const draft = newDeviceDraft.get();
   const [done, setDone] = useState(0); // quantos itens do checklist já foram concluídos
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const finished = useRef(false);
 
   const goToDone = useCallback(() => {
@@ -52,20 +57,34 @@ export default function ConnectingScreen() {
   }, [router]);
 
   useEffect(() => {
+    let cancelled = false;
     const t1 = setTimeout(() => setDone(1), 1200);
     const t2 = setTimeout(() => setDone(2), 2400);
     let t3: ReturnType<typeof setTimeout>;
 
-    deviceService
-      .connect(draft.type ?? 'colar', draft.ssid ?? '', draft.password)
-      .then(() => {
+    (async () => {
+      try {
+        await deviceService.connect(draft.type ?? 'colar', draft.ssid ?? '', draft.password);
+        if (!draft.petId || !draft.type) throw new Error('Escolha o pet e o tipo do dispositivo.');
+        await deviceService.register(draft.petId, draft.type, draft.deviceCode);
+        if (cancelled) return;
         setDone(3);
         t3 = setTimeout(goToDone, 800);
-      });
+      } catch (e) {
+        if (cancelled) return;
+        setError(errorMessage(e, 'Não foi possível vincular o dispositivo. Tente novamente.'));
+      }
+    })();
 
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => { cancelled = true; clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [attempt]);
+
+  const retry = () => {
+    setError(null);
+    setDone(0);
+    setAttempt((a) => a + 1);
+  };
 
   return (
     <DeviceFlowLayout step={4} onBack={() => router.back()}>
@@ -94,9 +113,19 @@ export default function ConnectingScreen() {
         })}
       </View>
 
-      <TouchableOpacity onPress={goToDone} style={styles.skip} hitSlop={8}>
-        <Text style={styles.skipText}>Concluir demonstração</Text>
-      </TouchableOpacity>
+      {!!error && (
+        <View style={styles.errorBox}>
+          <FeedbackBanner type="error" message={error} />
+          <Button title="Tentar novamente" onPress={retry} />
+          <TouchableOpacity
+            onPress={() => router.navigate('/novo-dispositivo/preparar')}
+            style={styles.skip}
+            hitSlop={8}
+          >
+            <Text style={styles.skipText}>Corrigir o código do dispositivo</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </DeviceFlowLayout>
   );
 }
@@ -126,6 +155,7 @@ const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   checkRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
   pending: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: colors.primary },
   checkLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.text },
-  skip: { alignSelf: 'center', marginTop: spacing.lg },
+  errorBox: { marginTop: spacing.lg },
+  skip: { alignSelf: 'center', marginTop: spacing.md },
   skipText: { fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
 }, dark));

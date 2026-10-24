@@ -1,3 +1,5 @@
+import { PetDeviceList } from '@/components/devices/PetDeviceList';
+import { EmptyPetsNotice } from '@/components/pets/EmptyPetsNotice';
 import { InfoCard } from '@/components/pets/InfoCard';
 import { LabeledField } from '@/components/pets/LabeledField';
 import { PetAvatar } from '@/components/pets/PetAvatar';
@@ -7,22 +9,30 @@ import { BottomTabBar } from '@/components/ui/BottomTabBar';
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
+import { getDeviceType } from '@/constants/deviceTypes';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { usePets } from '@/hooks/usePets';
+import { useVaccineSummary } from '@/hooks/useVaccineSummary';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
+import { deviceService } from '@/services/deviceService';
+import { errorMessage } from '@/services/api';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { newPetDraft } from '@/services/newPetDraft';
 import { petService } from '@/services/petService';
-import { vaccineService } from '@/services/vaccineService';
-import { Pet, PetFormValues, Species } from '@/types/pet';
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { PetDevice } from '@/types/device';
+import { PetFormValues, Species } from '@/types/pet';
+import { confirmAction, notify } from '@/utils/dialogs';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const SPECIES: readonly Species[] = ['Cachorro', 'Gato'];
 
+type FormValues = PetFormValues & { notes: string };
 type FormErrors = Partial<Record<keyof PetFormValues, string>>;
 
 const toNumber = (v: string) => Number(v.replace(',', '.'));
@@ -36,50 +46,55 @@ function validate(v: PetFormValues): FormErrors {
   return errors;
 }
 
-const toForm = (p: Pet): PetFormValues => ({
-  name: p.name, species: p.species, breed: p.breed, age: p.age, weight: p.weight,
+const toForm = (
+  p: { name: string; species: Species; breed: string; age: string; weight: string; notes?: string },
+): FormValues => ({
+  name: p.name, species: p.species, breed: p.breed, age: p.age, weight: p.weight, notes: p.notes ?? '',
 });
 
 export default function MeusPetsScreen() {
   const router = useRouter();
   const { ms } = useResponsive();
   const goToTab = useTabNavigation();
+  const { pets, loading, error, reload } = usePets();
   const { dark } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
-  const [pets, setPets] = useState<Pet[]>([]);
   const [selectedId, setSelectedId] = useState('');
-  const [form, setForm] = useState<PetFormValues | null>(null);
+  const [form, setForm] = useState<FormValues | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [, refreshVaccines] = useState(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // atualiza o resumo da carteira ao voltar para esta tela
-  useFocusEffect(
-    useCallback(() => {
-      refreshVaccines((n) => n + 1);
-    }, []),
-  );
-
+  const idsKey = pets.map((p) => p.id).join(',');
   useEffect(() => {
-    petService.list().then((list) => {
-      setPets(list);
-      if (list[0]) { setSelectedId(list[0].id); setForm(toForm(list[0])); }
-    });
-  }, []);
+    const current = pets.find((p) => p.id === selectedId) ?? pets[0];
+    if (!current) {
+      setSelectedId('');
+      setForm(null);
+      return;
+    }
+    setSelectedId(current.id);
+    setForm(toForm(current));
+    setErrors({});
+    setSaved(false);
+    setSaveError(null);
+  }, [idsKey]);
 
   const selected = pets.find((p) => p.id === selectedId);
+  const vaccineSummary = useVaccineSummary(selectedId || undefined);
 
   const selectPet = (id: string) => {
     const pet = pets.find((p) => p.id === id);
     if (!pet) return;
-    setSelectedId(id); setForm(toForm(pet)); setErrors({}); setSaved(false);
+    setSelectedId(id); setForm(toForm(pet)); setErrors({}); setSaved(false); setSaveError(null);
   };
 
-  const setField = <K extends keyof PetFormValues>(key: K, value: PetFormValues[K]) => {
+  const setField = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setForm((f) => (f ? { ...f, [key]: value } : f));
     setErrors((e) => ({ ...e, [key]: undefined }));
     setSaved(false);
+    setSaveError(null);
   };
 
   const handleSave = async () => {
@@ -89,16 +104,48 @@ export default function MeusPetsScreen() {
     if (Object.keys(found).length) return;
     try {
       setSaving(true);
-      await petService.update(selected.id, form);
-      setPets((list) => list.map((p) => (p.id === selected.id ? { ...p, ...form } : p)));
+      setSaveError(null);
+      await petService.update(selected, form);
+      await reload();
       setSaved(true);
+    } catch (e) {
+      setSaveError(errorMessage(e, 'Não foi possível salvar. Tente novamente.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const comingSoon = (title: string) => () =>
-    Alert.alert(title, 'Esta função será integrada nas próximas etapas.');
+  const changePhoto = async () => {
+    if (!selected) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    try {
+      await petService.updatePhoto(selected.id, result.assets[0].uri);
+      await reload();
+    } catch (e) {
+      notify('Não foi possível trocar a foto', errorMessage(e, 'Tente novamente em instantes.'));
+    }
+  };
+
+  const removeDevice = (device: PetDevice) => {
+    if (!selected) return;
+    const label = getDeviceType(device.type).label;
+    confirmAction({
+      title: 'Remover dispositivo',
+      message: `Desvincular ${label} (${device.code}) de ${selected.name}?`,
+      confirmLabel: 'Remover',
+      onConfirm: async () => {
+        try {
+          await deviceService.remove(selected.id, device.id);
+          await reload();
+        } catch (e) {
+          notify('Não foi possível remover', errorMessage(e, 'Tente novamente em instantes.'));
+        }
+      },
+    });
+  };
 
   const addNewPet = () => {
     newPetDraft.reset();
@@ -107,14 +154,36 @@ export default function MeusPetsScreen() {
 
   const addDevice = () => {
     newDeviceDraft.reset();
-    newDeviceDraft.set({ origin: 'meus-pets' });
+    newDeviceDraft.set({ origin: 'meus-pets', petId: selected?.id });
     router.push('/novo-dispositivo');
   };
 
-  if (!selected || !form) return <ScreenContainer edges={['top', 'left', 'right']}><View /></ScreenContainer>;
+  // Carregando, erro ou nenhum pet ainda
+  if (!selected || !form) {
+    return (
+      <ScreenContainer
+        edges={['top', 'left', 'right']}
+        footer={<BottomTabBar active="meus-pets" onPress={goToTab} />}
+      >
+        <EmptyPetsNotice
+          loading={loading || pets.length > 0}
+          error={pets.length === 0 ? error : null}
+          onAdd={addNewPet}
+          onRetry={reload}
+        />
+      </ScreenContainer>
+    );
+  }
 
-  const { upToDate, pending } = vaccineService.summary(selected.id, selected.vaccines);
-
+  const { upToDate, pending } = vaccineSummary ?? selected.vaccines;
+  const devices = selected.devices;
+  const deviceTitle =
+    devices.length === 0
+      ? 'Nenhum dispositivo'
+      : devices.length === 1
+        ? getDeviceType(devices[0].type).label
+        : `${devices.length} dispositivos`;
+  const deviceBadge = devices.length === 0 ? 'Não vinculado' : devices.some((d) => d.online) ? 'Online' : 'Offline';
   return (
     <ScreenContainer
       edges={['top', 'left', 'right']}
@@ -138,10 +207,11 @@ export default function MeusPetsScreen() {
       </View>
 
       <View style={styles.avatarBox}>
-        <PetAvatar source={selected.photo} onPress={comingSoon('Trocar foto')} />
+        <PetAvatar source={selected.photo} onPress={changePhoto} />
       </View>
 
       {saved && <FeedbackBanner message={`Dados de ${form.name.trim()} salvos com sucesso.`} />}
+      {!!saveError && <FeedbackBanner type="error" message={saveError} />}
 
       <View style={styles.row}>
         <LabeledField label="Nome" value={form.name} onChangeText={(t) => setField('name', t)} error={errors.name} />
@@ -163,6 +233,15 @@ export default function MeusPetsScreen() {
         />
       </View>
 
+      <View style={styles.row}>
+        <LabeledField
+          label="Observações" placeholder="Ex.: Muito brincalhona e curiosa."
+          multiline numberOfLines={3} value={form.notes}
+          onChangeText={(t) => setField('notes', t)}
+          style={{ minHeight: 70, textAlignVertical: 'top' }}
+        />
+      </View>
+
       <Text style={[styles.sectionLabel, { marginTop: 6, marginBottom: 10 }]}>Saúde e Cuidados</Text>
 
       <InfoCard
@@ -174,12 +253,15 @@ export default function MeusPetsScreen() {
 
       <InfoCard
         icon="wifi"
-        caption={`Dispositivo ${selected.species === 'Gato' ? 'da' : 'do'} ${selected.name}`}
-        title={selected.device?.name ?? 'Nenhum dispositivo'}
-        badge={selected.device?.linked ? 'Vinculado' : 'Não vinculado'}
-        badgeOk={!!selected.device?.linked}
+        caption={`Dispositivos ${selected.species === 'Gato' ? 'da' : 'do'} ${selected.name}`}
+        title={deviceTitle}
+        subtitle={devices.length > 0 ? 'Toque para adicionar outro' : 'Toque para conectar o primeiro'}
+        badge={deviceBadge}
+        badgeOk={devices.some((d) => d.online)}
         onPress={addDevice}
       />
+
+      <PetDeviceList devices={devices} onRemove={removeDevice} />
 
       <View style={styles.saveBox}>
         <Button title="Salvar alterações" onPress={handleSave} loading={saving} />

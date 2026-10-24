@@ -8,21 +8,24 @@ import PhoneFrame from '@/components/PhoneFrame';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
-import { Pet, PetId, petIds, pets } from '@/data/pets';
+import { EmptyPetsNotice } from '@/components/pets/EmptyPetsNotice';
+import type { Pet } from '@/data/pets';
+import { useAlerts } from '@/hooks/useAlerts';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { useAuth } from '@/hooks/useAuth';
+import { useDashboardPets } from '@/hooks/useDashboardPets';
+import { newPetDraft } from '@/services/newPetDraft';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 
-const user = { firstName: 'Beatriz', unreadAlerts: 5 };
-const devices = { connected: 3, total: 4 };
+ 
+
 
 // 7 barras; a 6ª é o pico do período (destacada no design)
 const activityBars = [22, 34, 12, 41, 29, 48, 38];
 const peakBarIndex = 5;
 
-/* ============================================================
-   UTILITÁRIOS
-============================================================ */
+/* UTILITÁRIOS */
 
 const WEEKDAYS = [
   'Domingo',
@@ -157,15 +160,16 @@ function MetricCard({
   );
 }
 
-/* ============================================================
-   TELA
-============================================================ */
+/* TELA */
 
 export default function HomeScreen() {
   const router = useRouter();
   const { tx } = useAppTheme();
-  const [selectedPet, setSelectedPet] = useState<PetId>('Rex');
-
+  const { user } = useAuth();
+  const { pets, devices, loading, error, reload } = useDashboardPets();
+  const { unreadCount: unreadAlerts } = useAlerts();
+  const connectedDevices = devices.filter((d) => d.online).length;
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const layout = useLayout();
   const { s } = layout;
 
@@ -182,16 +186,31 @@ export default function HomeScreen() {
     ],
   );
 
-  const pet = pets[selectedPet];
+  const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
+
+  const pet = pets.find((p) => p.id === selectedPetId) ?? pets[0];
 
   // Abre a tela de Atividade do pet que está selecionado
   function openActivity() {
-    router.push({ pathname: '/activity', params: { pet: selectedPet } });
+    router.push({ pathname: '/activity', params: { pet: pet.id } });
   }
 
   // Abre a tela de Alimentação já na aba escolhida
   function openFeeding(tab: 'food' | 'water') {
-    router.push({ pathname: '/alimentacao', params: { pet: selectedPet, tab } });
+    router.push({ pathname: '/alimentacao', params: { pet: pet.id, tab } });
+  }
+
+  function addFirstPet() {
+    newPetDraft.reset();
+    router.push('/novo-pet');
+  }
+
+  if (!pet) {
+    return (
+      <PhoneFrame active="home">
+        <EmptyPetsNotice loading={loading} error={error} onAdd={addFirstPet} onRetry={reload} />
+      </PhoneFrame>
+    );
   }
 
   return (
@@ -208,16 +227,15 @@ export default function HomeScreen() {
                 {formatToday()}
               </Text>
               <Text style={styles.greeting} numberOfLines={1}>
-                Olá, {user.firstName}!
+                Olá, {firstName}!
               </Text>
             </View>
 
             <Pressable
               style={styles.notificationButton}
               accessibilityRole="button"
-              accessibilityLabel={`Notificações, ${user.unreadAlerts} não lidas`}
-              // TODO: navegar para a Central de alertas
-              onPress={() => {}}
+              accessibilityLabel={`Notificações, ${unreadAlerts} não lidas`}
+              onPress={() => router.navigate('/alertas')}
             >
               <Ionicons
                 name="notifications-outline"
@@ -225,10 +243,10 @@ export default function HomeScreen() {
                 color={tx(colors.text)}
               />
 
-              {user.unreadAlerts > 0 && (
+              {unreadAlerts > 0 && (
                 <View style={styles.notificationBadge}>
                   <Text style={styles.notificationNumber}>
-                    {user.unreadAlerts}
+                    {unreadAlerts}
                   </Text>
                 </View>
               )}
@@ -239,12 +257,12 @@ export default function HomeScreen() {
           <Text style={styles.followingText}>ACOMPANHANDO AGORA</Text>
 
           <View style={styles.petRow}>
-            {petIds.map((id) => (
+            {pets.map((item) => (
               <PetSelectorCard
-                key={id}
-                pet={pets[id]}
-                selected={selectedPet === id}
-                onPress={() => setSelectedPet(id)}
+                key={item.id}
+                pet={item}
+                selected={pet.id === item.id}
+                onPress={() => setSelectedPetId(item.id)}
                 styles={styles}
                 s={s}
               />
@@ -405,7 +423,9 @@ export default function HomeScreen() {
             <View style={styles.deviceContent}>
               <Text style={styles.deviceTitle}>Dispositivos</Text>
               <Text style={styles.deviceSubtitle}>
-                {devices.connected} de {devices.total} conectados
+                {devices.length === 0
+                  ? 'Nenhum dispositivo vinculado'
+                  : `${connectedDevices} de ${devices.length} conectados`}
               </Text>
             </View>
           </Pressable>
@@ -415,7 +435,7 @@ export default function HomeScreen() {
             style={styles.insightCard}
             accessibilityRole="button"
             onPress={() =>
-              router.push({ pathname: '/relatorios', params: { pet: selectedPet } })
+              router.push({ pathname: '/relatorios', params: { pet: pet.id } })
             }
           >
             <View style={styles.insightIcon}>
@@ -520,11 +540,13 @@ function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
 
     petRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: s(12),
     },
 
     petCard: {
-      flex: 1,
+      flexGrow: 1,
+      flexBasis: '45%',
       minHeight: s(58),
       borderRadius: s(10),
       paddingHorizontal: s(10),

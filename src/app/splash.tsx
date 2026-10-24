@@ -1,17 +1,22 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Logo } from '@/components/ui/Logo';
+import { usePets } from '@/hooks/usePets';
 import { useResponsive } from '@/hooks/useResponsive';
 import { colors, fonts } from '@/constants/petTheme';
 
-const HOLD_AFTER_ANIMATION = 800; // tempo parado antes de ir para a Home
+const HOLD_AFTER_ANIMATION = 800;
+const MAX_WAIT_FOR_DATA = 5000; // se os dados demorarem mais que isso, segue para a Home mesmo assim
 
-/** Splash exibida APÓS o login, enquanto a Home carrega. */
 export default function SplashScreen() {
   const router = useRouter();
   const { width, ms } = useResponsive();
+
+  const { loading } = usePets();
+  const [minTimePassed, setMinTimePassed] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
   // Logo: aparece pequeno e dá "zoom" até o tamanho final
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -47,8 +52,7 @@ export default function SplashScreen() {
 
     animation.start(({ finished }) => {
       if (finished) {
-        // TODO: quando houver back-end, aguardar aqui o carregamento real dos dados.
-        timer = setTimeout(() => router.replace('/home'), HOLD_AFTER_ANIMATION);
+        timer = setTimeout(() => setMinTimePassed(true), HOLD_AFTER_ANIMATION);
       }
     });
 
@@ -56,7 +60,17 @@ export default function SplashScreen() {
       animation.stop();
       clearTimeout(timer);
     };
-  }, [router, logoOpacity, logoScale, titleOpacity, titleY, sloganOpacity, sloganY]);
+  }, [logoOpacity, logoScale, titleOpacity, titleY, sloganOpacity, sloganY]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), MAX_WAIT_FOR_DATA);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Animação concluída e dados carregados vai para a home
+  useEffect(() => {
+    if (minTimePassed && (!loading || timedOut)) router.replace('/home');
+  }, [minTimePassed, loading, timedOut, router]);
 
   return (
     <ScreenContainer scroll={false}>

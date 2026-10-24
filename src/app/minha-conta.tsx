@@ -19,25 +19,17 @@ import PhoneFrame from '@/components/PhoneFrame';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
+import { useAuth } from '@/hooks/useAuth';
+import { errorMessage } from '@/services/api';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
-import { setProfilePhoto, useProfilePhoto } from '@/hooks/useProfilephoto';
-
-/* ============================================================
-   DADOS MOCK
-   Quando existir login/API, troque por dados do usuário real.
-============================================================ */
-
-const initialUser = {
-  name: 'Arthur Mendonça',
-  email: 'arthur@meupetseguro.app',
-  phone: '(11) 98765-4321',
-};
+import { useProfilePhoto } from '@/hooks/useProfilePhoto';
+import { confirmAction, notify } from '@/utils/dialogs';
 
 type FieldKey = 'name' | 'email' | 'phone';
 
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+function getInitials(name?: string) {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
   const first = parts[0][0];
   const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
@@ -56,18 +48,22 @@ function formatPhone(value: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-/* ============================================================
-   TELA
-============================================================ */
+/* TELA */
 
 export default function AccountScreen() {
   const router = useRouter();
-  const { tx } = useAppTheme();
-  const photo = useProfilePhoto();
 
-  const [form, setForm] = useState(initialUser);
+  const { user, updateProfile, updatePhoto, removePhoto, signOut: logout } = useAuth();
+
+  const [form, setForm] = useState({
+    name: user?.name ?? '',
+    email: user?.email ?? '',
+    phone: formatPhone(user?.phone ?? ''),
+  });
   const [focused, setFocused] = useState<FieldKey | null>(null);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const layout = useLayout();
   const { s } = layout;
@@ -87,10 +83,57 @@ export default function AccountScreen() {
 
   const emailValid = /^\S+@\S+\.\S+$/.test(form.email.trim());
   const nameValid = form.name.trim().length > 1;
-  const canSave = emailValid && nameValid;
+  const phoneDigits = form.phone.replace(/\D/g, '');
+  const phoneValid = phoneDigits.length === 0 || phoneDigits.length === 10 || phoneDigits.length === 11;
+  const canSave = emailValid && nameValid && phoneValid;
+
+  const { tx } = useAppTheme();
+  const photo = useProfilePhoto();
+
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  async function changePhoto() {
+    if (photoBusy) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      notify('Permissão necessária', 'Permita o acesso às fotos para escolher uma imagem.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    try {
+      setPhotoBusy(true);
+      await updatePhoto(result.assets[0].uri);
+    } catch (e) {
+      notify('Não foi possível trocar a foto', errorMessage(e, 'Tente novamente em instantes.'));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  function removePhotoAction() {
+    confirmAction({
+      title: 'Remover foto',
+      message: 'Deseja remover sua foto de perfil?',
+      confirmLabel: 'Remover',
+      onConfirm: async () => {
+        try {
+          setPhotoBusy(true);
+          await removePhoto();
+        } catch (e) {
+          notify('Não foi possível remover a foto', errorMessage(e, 'Tente novamente em instantes.'));
+        } finally {
+          setPhotoBusy(false);
+        }
+      },
+    });
+  }
 
   function update(key: FieldKey, value: string) {
     setSaved(false);
+    setSaveError(null);
     setForm((current) => ({ ...current, [key]: value }));
   }
 
@@ -102,82 +145,26 @@ export default function AccountScreen() {
     }
   }
 
-  /* ---------- FOTO DE PERFIL ---------- */
-
-  async function pickPhoto(source: 'camera' | 'gallery') {
+  async function save() {
+    if (!canSave || saving) return;
     try {
-      if (source === 'camera') {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) {
-          Alert.alert(
-            'Permissão necessária',
-            'Permita o acesso à câmera nas configurações do aparelho.',
-          );
-          return;
-        }
-      } else if (Platform.OS !== 'web') {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-          Alert.alert(
-            'Permissão necessária',
-            'Permita o acesso às fotos nas configurações do aparelho.',
-          );
-          return;
-        }
-      }
-
-      const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      };
-
-      const result =
-        source === 'camera'
-          ? await ImagePicker.launchCameraAsync(options)
-          : await ImagePicker.launchImageLibraryAsync(options);
-
-      if (!result.canceled && result.assets[0]?.uri) {
-        // TODO: enviar a foto para a API
-        setProfilePhoto(result.assets[0].uri);
-      }
-    } catch {
-      Alert.alert('Não foi possível carregar a foto', 'Tente novamente.');
+      setSaving(true);
+      setSaveError(null);
+      await updateProfile({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: phoneDigits, // '' apaga o telefone
+      });
+      setSaved(true);
+    } catch (e) {
+      setSaveError(errorMessage(e, 'Não foi possível salvar. Tente novamente.'));
+    } finally {
+      setSaving(false);
     }
   }
 
-  function changePhoto() {
-    // No navegador abre direto o seletor de arquivos
-    if (Platform.OS === 'web') {
-      pickPhoto('gallery');
-      return;
-    }
-
-    Alert.alert('Foto de perfil', 'Escolha uma opção', [
-      { text: 'Tirar foto', onPress: () => pickPhoto('camera') },
-      { text: 'Escolher da galeria', onPress: () => pickPhoto('gallery') },
-      ...(photo
-        ? [
-            {
-              text: 'Remover foto',
-              style: 'destructive' as const,
-              onPress: () => setProfilePhoto(null),
-            },
-          ]
-        : []),
-      { text: 'Cancelar', style: 'cancel' as const },
-    ]);
-  }
-
-  function save() {
-    if (!canSave) return;
-    // TODO: enviar os dados para a API
-    setSaved(true);
-  }
-
-  function signOut() {
-    // TODO: limpar a sessão do usuário antes de voltar ao login
+  async function signOut() {
+    await logout();
     router.replace('/login');
   }
 
@@ -211,6 +198,7 @@ export default function AccountScreen() {
       placeholder: '(00) 00000-0000',
       keyboardType: 'phone-pad',
       autoCapitalize: 'none',
+      error: phoneValid ? undefined : 'Informe o DDD e o número.',
     },
   ];
 
@@ -221,7 +209,7 @@ export default function AccountScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -289,8 +277,23 @@ export default function AccountScreen() {
                   onPress={changePhoto}
                   hitSlop={8}
                 >
-                  <Text style={styles.changePhoto}>Trocar foto de perfil</Text>
+                  <Text style={styles.changePhoto}>
+                    {photoBusy ? 'Enviando...' : 'Trocar foto de perfil'}
+                  </Text>
                 </Pressable>
+
+                {!!photo && (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={removePhotoAction}
+                    disabled={photoBusy}
+                    hitSlop={8}
+                  >
+                    <Text style={[styles.changePhoto, { color: ui.signOut, marginTop: s(4) }]}>
+                      Remover foto
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             </View>
 
@@ -379,14 +382,21 @@ export default function AccountScreen() {
 
             {/* AÇÕES */}
             <Pressable
-              style={[styles.saveButton, !canSave && styles.saveDisabled]}
+              style={[styles.saveButton, (!canSave || saving) && styles.saveDisabled]}
               onPress={save}
-              disabled={!canSave}
+              disabled={!canSave || saving}
               accessibilityRole="button"
-              accessibilityState={{ disabled: !canSave }}
+              accessibilityState={{ disabled: !canSave || saving }}
             >
-              <Text style={styles.saveText}>Salvar alterações</Text>
+              <Text style={styles.saveText}>{saving ? 'Salvando...' : 'Salvar alterações'}</Text>
             </Pressable>
+
+            {!!saveError && (
+              <View style={styles.savedRow} accessibilityLiveRegion="polite">
+                <Ionicons name="alert-circle" size={s(16)} color={ui.signOut} />
+                <Text style={[styles.savedText, { color: ui.signOut }]}>{saveError}</Text>
+              </View>
+            )}
 
             {saved && (
               <View style={styles.savedRow} accessibilityLiveRegion="polite">

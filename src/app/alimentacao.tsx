@@ -7,7 +7,7 @@ import PhoneFrame from '@/components/PhoneFrame';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
-import { isPetId, pets } from '@/data/pets';
+import { useDashboardPets } from '@/hooks/useDashboardPets';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 
@@ -90,14 +90,14 @@ export default function FeedingScreen() {
     tab?: string;
   }>();
 
-  // Recebe da Home: /alimentacao?pet=Mia&tab=water
-  const petId = isPetId(petParam) ? petParam : 'Rex';
-  const pet = pets[petId];
+  // Recebe da Home: /alimentacao?pet=<id>&tab=water. Sem parâmetro, usa o primeiro pet.
+  const { pets } = useDashboardPets();
+  const pet = pets.find((p) => p.id === petParam) ?? pets[0];
 
   const [kind, setKind] = useState<Kind>(tabParam === 'water' ? 'water' : 'food');
   const info = KINDS[kind];
 
-  const percent = kind === 'food' ? pet.food : pet.water;
+  const percent = pet ? (kind === 'food' ? pet.food : pet.water) : 0;
   const low = percent < LOW_THRESHOLD;
 
   const layout = useLayout();
@@ -115,6 +115,9 @@ export default function FeedingScreen() {
       layout.dark,
     ],
   );
+
+  // Ainda carregando os pets
+  if (!pet) return null;
 
   function goBack() {
     if (router.canGoBack()) {

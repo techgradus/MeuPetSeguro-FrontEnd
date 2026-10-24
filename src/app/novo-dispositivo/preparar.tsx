@@ -1,5 +1,6 @@
 import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceFlowLayout';
 import { Button } from '@/components/ui/Button';
+import { TextField } from '@/components/ui/TextField';
 import { themed } from '@/constants/darkTheme';
 import { getDeviceType } from '@/constants/deviceTypes';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
@@ -7,7 +8,7 @@ import { useAppTheme } from '@/hooks/useAppTheme';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 export default function PrepareDeviceScreen() {
@@ -15,6 +16,13 @@ export default function PrepareDeviceScreen() {
   const { dark } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
   const info = getDeviceType(newDeviceDraft.get().type ?? 'colar');
+  const [code, setCode] = useState(newDeviceDraft.get().deviceCode);
+
+  const next = () => {
+    if (!code.trim()) return;
+    newDeviceDraft.set({ deviceCode: code.trim() });
+    router.push('/novo-dispositivo/rede');
+  };
 
   return (
     <DeviceFlowLayout step={2} onBack={() => router.back()}>
@@ -47,7 +55,18 @@ export default function PrepareDeviceScreen() {
         </Text>
       </View>
 
-      <Button title="O dispositivo está ligado" onPress={() => router.push('/novo-dispositivo/rede')} />
+      <TextField
+        label="Código do dispositivo"
+        icon="qr-code-outline"
+        placeholder="Ex.: COLAR-1A2B3C"
+        autoCapitalize="characters"
+        autoCorrect={false}
+        value={code}
+        onChangeText={setCode}
+      />
+      <Text style={styles.codeHint}>O código fica na etiqueta do dispositivo ou na embalagem.</Text>
+
+      <Button title="O dispositivo está ligado" onPress={next} disabled={!code.trim()} />
     </DeviceFlowLayout>
   );
 }
@@ -69,5 +88,6 @@ const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   },
   infoHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   infoTitle: { flex: 1, fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
+  codeHint: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted, marginBottom: spacing.lg, marginTop: -spacing.sm },
   infoText: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 17, color: colors.textMuted },
 }, dark));

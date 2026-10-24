@@ -7,7 +7,7 @@ import { colors, fonts, radius, shadow } from '@/constants/petTheme';
 type Props = { title: string; onPress: () => void; loading?: boolean; disabled?: boolean };
 
 export function Button({ title, onPress, loading, disabled }: Props) {
-  const { dark, c } = useAppTheme();
+  const { dark } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
   const blocked = disabled || loading;
   return (

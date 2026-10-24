@@ -2,7 +2,7 @@ import { themed } from '@/constants/darkTheme';
 import { colors, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import React, { useMemo } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 type Props = {
@@ -24,7 +24,7 @@ export function ScreenContainer({ children, scroll = true, edges, footer }: Prop
       />
       <View style={styles.circleTop} />
       <View style={styles.circleBottom} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {scroll ? (
           <ScrollView
             contentContainerStyle={styles.content}

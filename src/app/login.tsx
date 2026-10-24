@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
+import { useAuth } from '@/hooks/useAuth';
 import { Logo } from '@/components/ui/Logo';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
@@ -8,7 +9,7 @@ import { themed } from '@/constants/darkTheme';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import { authService, INVALID_CREDENTIALS } from '@/services/authService';
+import { INVALID_CREDENTIALS } from '@/services/authService';
 import { validateEmail, validatePassword } from '@/utils/validators';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
@@ -25,6 +26,7 @@ export default function LoginScreen() {
   const [errors, setErrors] = useState<{ email?: string | null; password?: string | null }>({});
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { signIn } = useAuth();
 
   const handleLogin = async () => {
     const next = { email: validateEmail(email), password: validatePassword(password) };
@@ -34,8 +36,7 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
-      await authService.signIn({ email: email.trim(), password });
-      // TODO: após integrar o back-end, salvar o token/sessão antes de navegar.
+      await signIn({ email: email.trim(), password });
       router.replace('/splash');
     } catch (e) {
       const invalid = e instanceof Error && e.message === INVALID_CREDENTIALS;
