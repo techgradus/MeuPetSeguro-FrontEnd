@@ -4,11 +4,13 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PhoneFrame from '@/components/PhoneFrame';
+import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { errorMessage } from '@/services/api';
 import { petService } from '@/services/petService';
 import { vaccineService } from '@/services/vaccineService';
 import { Pet } from '@/types/pet';
@@ -27,6 +29,7 @@ export default function VaccineWalletScreen() {
 
   const [pet, setPet] = useState<Pet | null>(null);
   const [vaccines, setVaccines] = useState<Vaccine[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const layout = useLayout();
   const { dark, bg, tx } = useAppTheme();
@@ -43,12 +46,17 @@ export default function VaccineWalletScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const pets = await petService.list();
-        const current = pets.find((p) => p.id === petId) ?? pets[0] ?? null;
-        const list = current ? await vaccineService.list(current.id) : [];
-        if (active) {
-          setPet(current);
-          setVaccines(list);
+        try {
+          const pets = await petService.list();
+          const current = pets.find((p) => p.id === petId) ?? pets[0] ?? null;
+          const list = current ? await vaccineService.list(current.id) : [];
+          if (active) {
+            setPet(current);
+            setVaccines(list);
+            setLoadError(null);
+          }
+        } catch (e) {
+          if (active) setLoadError(errorMessage(e, 'Não foi possível carregar as vacinas.'));
         }
       })();
       return () => {
@@ -89,6 +97,8 @@ export default function VaccineWalletScreen() {
             <Text style={styles.headerTitle}>Carteira de Vacinação</Text>
             <View style={styles.backButtonSpacer} />
           </View>
+
+          {!!loadError && <FeedbackBanner type="error" message={loadError} />}
 
           {pet && (
             <>

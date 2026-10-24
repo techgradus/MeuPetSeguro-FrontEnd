@@ -10,4 +10,4 @@ export type Vaccine = {
   notes?: string;
 };
 
-export type NewVaccineInput = Omit<Vaccine, 'id' | 'petId'>;
+export type NewVaccineInput = Omit<Vaccine, 'id' | 'petId' | 'status'>;

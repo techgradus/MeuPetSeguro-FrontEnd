@@ -9,6 +9,7 @@ export type SessionUser = {
   name: string;
   email: string;
   phone?: string | null;
+  photoUrl?: string | null;
 };
 
 const storage = {

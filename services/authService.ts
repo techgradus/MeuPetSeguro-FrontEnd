@@ -1,5 +1,6 @@
 import { api, ApiError } from '@/services/api';
 import { session, type SessionUser } from '@/services/session';
+import { appendPhoto } from '@/utils/appendPhoto';
 
 export type SignInPayload = { email: string; password: string };
 
@@ -46,6 +47,25 @@ export const authService = {
 
   async updateProfile(payload: UpdateProfilePayload): Promise<SessionUser> {
     const user = await api<SessionUser>('/auth/me', { method: 'PUT', body: payload, auth: true });
+    await session.saveUser(user);
+    return user;
+  },
+
+  async updatePhoto(photoUri: string): Promise<SessionUser> {
+    const form = new FormData();
+    await appendPhoto(form, photoUri);
+    const user = await api<SessionUser>('/auth/me/photo', {
+      method: 'PUT',
+      body: form,
+      auth: true,
+      timeoutMs: 30000,
+    });
+    await session.saveUser(user);
+    return user;
+  },
+
+  async removePhoto(): Promise<SessionUser> {
+    const user = await api<SessionUser>('/auth/me/photo', { method: 'DELETE', auth: true });
     await session.saveUser(user);
     return user;
   },

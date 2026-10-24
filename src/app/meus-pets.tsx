@@ -14,6 +14,7 @@ import { themed } from '@/constants/darkTheme';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { usePets } from '@/hooks/usePets';
+import { useVaccineSummary } from '@/hooks/useVaccineSummary';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { deviceService } from '@/services/deviceService';
@@ -28,7 +29,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useProfilePhoto, setProfilePhoto } from '@/hooks/useProfilePhoto';
 
 const SPECIES: readonly Species[] = ['Cachorro', 'Gato'];
 
@@ -82,6 +82,7 @@ export default function MeusPetsScreen() {
   }, [idsKey]);
 
   const selected = pets.find((p) => p.id === selectedId);
+  const vaccineSummary = useVaccineSummary(selectedId || undefined);
 
   const selectPet = (id: string) => {
     const pet = pets.find((p) => p.id === id);
@@ -174,7 +175,7 @@ export default function MeusPetsScreen() {
     );
   }
 
-  const { upToDate, pending } = selected.vaccines;
+  const { upToDate, pending } = vaccineSummary ?? selected.vaccines;
   const devices = selected.devices;
   const deviceTitle =
     devices.length === 0

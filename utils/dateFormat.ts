@@ -27,6 +27,13 @@ export function isoToBr(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+export function todayIso(): string {
+  const n = new Date();
+  const mm = String(n.getMonth() + 1).padStart(2, '0');
+  const dd = String(n.getDate()).padStart(2, '0');
+  return `${n.getFullYear()}-${mm}-${dd}`;
+}
+
 export function todayBr(): string {
   const n = new Date();
   const dd = String(n.getDate()).padStart(2, '0');

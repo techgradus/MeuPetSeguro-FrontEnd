@@ -122,7 +122,7 @@ export default function ChangePasswordScreen() {
       {/* Esconde o cabeçalho nativo; a tela tem o próprio */}
       <Stack.Screen options={{ headerShown: false }} />
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

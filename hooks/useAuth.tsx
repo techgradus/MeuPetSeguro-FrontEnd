@@ -19,8 +19,9 @@ type AuthContextValue = {
   isLoading: boolean;
   signIn: (payload: SignInPayload) => Promise<void>;
   signOut: () => Promise<void>;
-  /** Edita nome/e-mail/telefone no back-end e atualiza o usuário em todo o app. */
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
+  updatePhoto: (photoUri: string) => Promise<void>;
+  removePhoto: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -93,9 +94,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updated);
   }, []);
 
+  const updatePhoto = useCallback(async (photoUri: string) => {
+    setUser(await authService.updatePhoto(photoUri));
+  }, []);
+
+  const removePhoto = useCallback(async () => {
+    setUser(await authService.removePhoto());
+  }, []);
+
   const value = useMemo(
-    () => ({ user, isLoading, signIn, signOut, updateProfile }),
-    [user, isLoading, signIn, signOut, updateProfile],
+    () => ({ user, isLoading, signIn, signOut, updateProfile, updatePhoto, removePhoto }),
+    [user, isLoading, signIn, signOut, updateProfile, updatePhoto, removePhoto],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

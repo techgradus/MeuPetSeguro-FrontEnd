@@ -23,8 +23,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/services/api';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
-import { useProfilePhoto, setProfilePhoto } from '@/hooks/useProfilePhoto';
-import { notify } from '@/utils/dialogs';
+import { useProfilePhoto } from '@/hooks/useProfilePhoto';
+import { confirmAction, notify } from '@/utils/dialogs';
 
 type FieldKey = 'name' | 'email' | 'phone';
 
@@ -53,7 +53,7 @@ function formatPhone(value: string) {
 export default function AccountScreen() {
   const router = useRouter();
 
-  const { user, updateProfile, signOut: logout } = useAuth();
+  const { user, updateProfile, updatePhoto, removePhoto, signOut: logout } = useAuth();
 
   const [form, setForm] = useState({
     name: user?.name ?? '',
@@ -90,7 +90,10 @@ export default function AccountScreen() {
   const { tx } = useAppTheme();
   const photo = useProfilePhoto();
 
+  const [photoBusy, setPhotoBusy] = useState(false);
+
   async function changePhoto() {
+    if (photoBusy) return;
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       notify('Permissão necessária', 'Permita o acesso às fotos para escolher uma imagem.');
@@ -100,7 +103,32 @@ export default function AccountScreen() {
       mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
     });
     if (result.canceled || !result.assets[0]) return;
-    setProfilePhoto(result.assets[0].uri);
+    try {
+      setPhotoBusy(true);
+      await updatePhoto(result.assets[0].uri);
+    } catch (e) {
+      notify('Não foi possível trocar a foto', errorMessage(e, 'Tente novamente em instantes.'));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  function removePhotoAction() {
+    confirmAction({
+      title: 'Remover foto',
+      message: 'Deseja remover sua foto de perfil?',
+      confirmLabel: 'Remover',
+      onConfirm: async () => {
+        try {
+          setPhotoBusy(true);
+          await removePhoto();
+        } catch (e) {
+          notify('Não foi possível remover a foto', errorMessage(e, 'Tente novamente em instantes.'));
+        } finally {
+          setPhotoBusy(false);
+        }
+      },
+    });
   }
 
   function update(key: FieldKey, value: string) {
@@ -181,7 +209,7 @@ export default function AccountScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -249,8 +277,23 @@ export default function AccountScreen() {
                   onPress={changePhoto}
                   hitSlop={8}
                 >
-                  <Text style={styles.changePhoto}>Trocar foto de perfil</Text>
+                  <Text style={styles.changePhoto}>
+                    {photoBusy ? 'Enviando...' : 'Trocar foto de perfil'}
+                  </Text>
                 </Pressable>
+
+                {!!photo && (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={removePhotoAction}
+                    disabled={photoBusy}
+                    hitSlop={8}
+                  >
+                    <Text style={[styles.changePhoto, { color: ui.signOut, marginTop: s(4) }]}>
+                      Remover foto
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             </View>
 

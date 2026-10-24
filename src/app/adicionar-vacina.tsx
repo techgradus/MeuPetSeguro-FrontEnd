@@ -15,18 +15,16 @@ import {
 
 import PhoneFrame from '@/components/PhoneFrame';
 import { LabeledField } from '@/components/pets/LabeledField';
-import { SelectField } from '@/components/pets/SelectField';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { errorMessage } from '@/services/api';
 import { petService } from '@/services/petService';
 import { vaccineService } from '@/services/vaccineService';
-import { VaccineStatus } from '@/types/vaccine';
-import { brToIso, isoToBr, maskDate, todayBr } from '@/utils/dateFormat';
-
-const STATUS_OPTIONS: readonly VaccineStatus[] = ['Em dia', 'Próxima do vencimento', 'Atrasada'];
+import { brToIso, isoToBr, maskDate, todayBr, todayIso } from '@/utils/dateFormat';
+import { notify } from '@/utils/dialogs';
 
 type Errors = Partial<Record<'name' | 'appliedAt' | 'nextDoseAt', string>>;
 
@@ -77,7 +75,6 @@ export default function AddVaccineScreen() {
   const [name, setName] = useState('');
   const [appliedAt, setAppliedAt] = useState(todayBr());
   const [nextDoseAt, setNextDoseAt] = useState('');
-  const [status, setStatus] = useState<VaccineStatus>('Em dia');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
@@ -104,7 +101,6 @@ export default function AddVaccineScreen() {
           setName(vaccine.name);
           setAppliedAt(isoToBr(vaccine.appliedAt));
           setNextDoseAt(vaccine.nextDoseAt ? isoToBr(vaccine.nextDoseAt) : '');
-          setStatus(vaccine.status);
           setNotes(vaccine.notes ?? '');
           targetPetId = vaccine.petId;
         }
@@ -115,7 +111,7 @@ export default function AddVaccineScreen() {
         setPetName(current.name);
         setResolvedPetId(current.id);
       }
-    })();
+    })().catch((e) => notify('Não foi possível carregar', errorMessage(e, 'Tente novamente em instantes.')));
   }, [petId, vaccineId]);
 
   function clearError(key: keyof Errors) {
@@ -133,11 +129,12 @@ export default function AddVaccineScreen() {
 
     const appliedIso = brToIso(appliedAt);
     if (!appliedIso) found.appliedAt = 'Data inválida.';
+    else if (appliedIso > todayIso()) found.appliedAt = 'A data não pode ser no futuro.';
 
     if (nextDoseAt) {
       const nextIso = brToIso(nextDoseAt);
       if (!nextIso) found.nextDoseAt = 'Data inválida.';
-      else if (appliedIso && nextIso < appliedIso) found.nextDoseAt = 'Deve ser após a aplicação.';
+      else if (appliedIso && nextIso <= appliedIso) found.nextDoseAt = 'Deve ser após a aplicação.';
     }
     return { found, appliedIso };
   }
@@ -154,12 +151,13 @@ export default function AddVaccineScreen() {
         name: name.trim(),
         appliedAt: appliedIso,
         nextDoseAt: nextDoseAt ? brToIso(nextDoseAt) ?? undefined : undefined,
-        status,
         notes: notes.trim() || undefined,
       };
       if (vaccineId) await vaccineService.update(vaccineId, payload);
       else await vaccineService.add(resolvedPetId, payload);
       goBack(); // as telas anteriores recarregam ao voltar ao foco
+    } catch (e) {
+      notify('Não foi possível salvar', errorMessage(e, 'Tente novamente em instantes.'));
     } finally {
       setSaving(false);
     }
@@ -171,7 +169,7 @@ export default function AddVaccineScreen() {
     <PhoneFrame active="pet">
       <Stack.Screen options={{ headerShown: false }} />
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -221,9 +219,8 @@ export default function AddVaccineScreen() {
               />
             </View>
 
-            <View style={styles.row}>
-              <SelectField label="Status" value={status} options={STATUS_OPTIONS} onChange={setStatus} />
-            </View>
+            <Text style={styles.note}>O status (em dia, próxima do vencimento ou atrasada) é calculado pela data da próxima dose.</Text>
+
 
             <View style={styles.row}>
               <LabeledField
