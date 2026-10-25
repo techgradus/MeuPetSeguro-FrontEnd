@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: Verificações (TypeScript)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Confere erros de tipos do TypeScript (os testes entram no passo 2)
+      - run: npx tsc --noEmit
+
+  apk:
+    name: Gerar APK (Android)
+    needs: checks
+    runs-on: ubuntu-latest
+    env:
+      # Endereço da API que será embutido no APK (criar em Settings > Secrets and variables > Actions > Variables)
+      EXPO_PUBLIC_API_URL: ${{ vars.API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - run: npm ci
+
+      - run: npx expo prebuild --platform android --no-install
+
+      - name: Compilar APK de release
+        run: cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Publicar APK como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: meupetseguro-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
