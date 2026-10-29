@@ -1,4 +1,4 @@
-import { api, FILES_BASE } from '@/services/api';
+import { api, fileUrl } from '@/services/api';
 import { type ApiDevice, deviceFromApi } from '@/services/deviceService';
 import { Pet, PetFormValues, Species } from '@/types/pet';
 import { appendPhoto } from '@/utils/appendPhoto';
@@ -50,7 +50,7 @@ function fromApi(p: ApiPet): Pet {
     age: ageFromBirthDate(p.birthDate),
     weight: p.weightKg == null ? '' : String(p.weightKg).replace('.', ','),
     notes: p.notes ?? undefined,
-    photo: p.photoUrl ? { uri: `${FILES_BASE}${p.photoUrl}` } : undefined,
+    photo: p.photoUrl ? { uri: fileUrl(p.photoUrl) } : undefined,
     vaccines: { upToDate: 0, pending: 0 },
     devices: (p.devices ?? []).map(deviceFromApi),
   };

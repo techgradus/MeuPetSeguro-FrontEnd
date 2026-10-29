@@ -37,6 +37,10 @@ export function setUnauthorizedHandler(fn: (() => void) | null) {
   onUnauthorized = fn;
 }
 
+export function fileUrl(path: string): string {
+  return /^https?:\/\//i.test(path) ? path : `${FILES_BASE}${path}`;
+}
+
 export async function api<T>(
   path: string,
   { method = 'GET', body, auth = false, timeoutMs = TIMEOUT_MS }: Options = {},
