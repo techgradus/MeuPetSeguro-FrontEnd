@@ -1,10 +1,10 @@
 import { DeviceFlowLayout } from '@/components/devices/DeviceFlowLayout';
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
-import { errorMessage } from '@/services/api';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { errorMessage } from '@/services/api';
 import { deviceService } from '@/services/deviceService';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,8 +47,11 @@ export default function ConnectingScreen() {
   const draft = newDeviceDraft.get();
   const [done, setDone] = useState(0); // quantos itens do checklist já foram concluídos
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const finished = useRef(false);
+  // Guarda o dispositivo já vinculado: se a espera falhar, "tentar novamente" só espera de novo
+  const registered = useRef<{ petId: string; id: string } | null>(null);
 
   const goToDone = useCallback(() => {
     if (finished.current) return;
@@ -64,10 +67,26 @@ export default function ConnectingScreen() {
 
     (async () => {
       try {
-        await deviceService.connect(draft.type ?? 'colar', draft.ssid ?? '', draft.password);
-        if (!draft.petId || !draft.type) throw new Error('Escolha o pet e o tipo do dispositivo.');
-        await deviceService.register(draft.petId, draft.type, draft.deviceCode);
+        if (!registered.current) {
+          // Wi-Fi do aparelho (ainda simulado) e vínculo com o pet no back-end
+          await deviceService.connect(draft.type ?? 'colar', draft.ssid ?? '', draft.password);
+          if (!draft.petId || !draft.type) throw new Error('Escolha o pet e o tipo do dispositivo.');
+          const device = await deviceService.register(draft.petId, draft.type, draft.deviceCode);
+          registered.current = { petId: draft.petId, id: device.id };
+        }
+
+        // Espera o dispositivo ficar online (ele avisa o back-end quando liga)
+        const online = await deviceService.waitUntilOnline(registered.current.petId, registered.current.id, {
+          shouldStop: () => cancelled,
+        });
         if (cancelled) return;
+        if (!online) {
+          setNotice(
+            'O dispositivo foi vinculado, mas ainda não respondeu. Confira se ele está ligado. ' +
+              '(No modo de teste, rode o simulador: npm run mqtt:simulate.)',
+          );
+          return;
+        }
         setDone(3);
         t3 = setTimeout(goToDone, 800);
       } catch (e) {
@@ -82,6 +101,7 @@ export default function ConnectingScreen() {
 
   const retry = () => {
     setError(null);
+    setNotice(null);
     setDone(0);
     setAttempt((a) => a + 1);
   };
@@ -112,6 +132,16 @@ export default function ConnectingScreen() {
           );
         })}
       </View>
+
+      {!!notice && (
+        <View style={styles.errorBox}>
+          <FeedbackBanner type="error" message={notice} />
+          <Button title="Tentar novamente" onPress={retry} />
+          <TouchableOpacity onPress={goToDone} style={styles.skip} hitSlop={8}>
+            <Text style={styles.skipText}>Continuar mesmo assim</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {!!error && (
         <View style={styles.errorBox}>
