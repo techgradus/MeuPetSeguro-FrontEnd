@@ -2,6 +2,7 @@ import { clearAlertsCache } from '@/hooks/useAlerts';
 import { clearPetsCache } from '@/hooks/usePets';
 import { setUnauthorizedHandler } from '@/services/api';
 import { authService, type SignInPayload, type UpdateProfilePayload } from '@/services/authService';
+import { unregisterPush } from '@/services/pushService';
 import { session, type SessionUser } from '@/services/session';
 import {
   createContext,
@@ -85,6 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Antes de limpar a sessão (precisa do token): este aparelho para de receber os alertas dessa conta
+    await unregisterPush().catch(() => {});
     await authService.signOut();
     setUser(null);
   }, []);
