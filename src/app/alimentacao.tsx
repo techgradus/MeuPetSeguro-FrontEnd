@@ -7,76 +7,47 @@ import PhoneFrame from '@/components/PhoneFrame';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
-import { useDashboardPets } from '@/hooks/useDashboardPets';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { useDashboardPets } from '@/hooks/useDashboardPets';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
-
-/* ============================================================
-   DADOS MOCK
-   O nível (%) vem de data/pets.ts. O restante (média, gráfico e
-   histórico) é mock: troque por dados reais quando houver API.
-============================================================ */
+import { useConsumptionReport } from '@/hooks/usePetLive';
+import { toFeedingView } from '@/utils/petLive';
 
 type Kind = 'food' | 'water';
-
-type HistoryItem = {
-  title: string;
-  time: string;
-  amount: string;
-};
 
 type KindInfo = {
   tabLabel: string;
   chartTitle: string;
-  average: string;
   color: string; // barras do gráfico e líquido do pote
   softColor: string; // fundo dos ícones
   headerIcon: keyof typeof Ionicons.glyphMap;
   okText: string;
-  /** Valores de 0 a 100, de segunda a domingo */
-  bars: number[];
-  history: HistoryItem[];
 };
 
 const KINDS: Record<Kind, KindInfo> = {
   food: {
     tabLabel: 'Comida',
     chartTitle: 'Consumo diário',
-    average: 'média 320 g',
     color: '#DD9528',
     softColor: '#FFE9CC',
     headerIcon: 'restaurant-outline',
-    okText: 'Há comida suficiente até amanhã de manhã.',
-    bars: [85, 61, 100, 73, 91, 77, 85],
-    history: [
-      { title: 'Consumo registrado', time: 'Hoje, 08:14', amount: '112 g' },
-      { title: 'Pote utilizado', time: 'Ontem, 19:32', amount: '98 g' },
-      { title: 'Pote utilizado', time: 'Ontem, 12:08', amount: '106 g' },
-    ],
+    okText: 'Há comida suficiente por enquanto.',
   },
   water: {
     tabLabel: 'Água',
     chartTitle: 'Hidratação diária',
-    average: 'média 680 ml',
     color: '#3A94C9',
     softColor: '#D6EEFB',
     headerIcon: 'water-outline',
-    okText: 'Há água suficiente até amanhã de manhã.',
-    bars: [70, 88, 55, 100, 82, 91, 52],
-    history: [
-      { title: 'Consumo registrado', time: 'Hoje, 08:14', amount: '210 ml' },
-      { title: 'Pote utilizado', time: 'Ontem, 19:32', amount: '184 ml' },
-      { title: 'Pote utilizado', time: 'Ontem, 12:08', amount: '226 ml' },
-    ],
+    okText: 'Há água suficiente por enquanto.',
   },
 };
 
 const KIND_ORDER: Kind[] = ['food', 'water'];
-const WEEK_AXIS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 // Abaixo deste nível o pote é considerado "BAIXO" (igual à Home)
 const LOW_THRESHOLD = 60;
-const LOW_TEXT = 'O pote pode ficar vazio nas próximas 3 horas.';
+const LOW_TEXT = 'Reponha em breve para não faltar.';
 
 /* ============================================================
    TELA
@@ -97,8 +68,15 @@ export default function FeedingScreen() {
   const [kind, setKind] = useState<Kind>(tabParam === 'water' ? 'water' : 'food');
   const info = KINDS[kind];
 
-  const percent = pet ? (kind === 'food' ? pet.food : pet.water) : 0;
-  const low = percent < LOW_THRESHOLD;
+  const { data: report } = useConsumptionReport(pet?.id, kind);
+  const view = toFeedingView(report, kind);
+  const percent = report?.percent ?? 0;
+  const noData = !report || report.percent === null;
+  const low = !noData && percent < LOW_THRESHOLD;
+  const noDataText =
+    report && !report.hasDevice
+      ? `Vincule um pote de ${kind === 'food' ? 'comida' : 'água'} a este pet em Meus pets.`
+      : 'Aguardando as primeiras leituras do pote.';
 
   const layout = useLayout();
   const { s } = layout;
@@ -218,7 +196,7 @@ export default function FeedingScreen() {
                 />
               </View>
 
-              <Text style={styles.tankLabel}>{low ? 'BAIXO' : 'OK'}</Text>
+              <Text style={styles.tankLabel}>{noData ? '--' : low ? 'BAIXO' : 'OK'}</Text>
             </View>
           </View>
 
@@ -232,10 +210,10 @@ export default function FeedingScreen() {
 
             <View style={styles.bannerContent}>
               <Text style={styles.bannerTitle}>
-                {low ? 'Reposição recomendada' : 'Nível confortável'}
+                {noData ? 'Sem leituras' : low ? 'Reposição recomendada' : 'Nível confortável'}
               </Text>
               <Text style={styles.bannerText}>
-                {low ? LOW_TEXT : info.okText}
+                {noData ? noDataText : low ? LOW_TEXT : info.okText}
               </Text>
             </View>
           </View>
@@ -244,7 +222,7 @@ export default function FeedingScreen() {
           <View style={styles.chartCard}>
             <View style={styles.chartHeader}>
               <Text style={styles.chartCaption}>Últimos 7 dias</Text>
-              <Text style={styles.chartCaption}>{info.average}</Text>
+              <Text style={styles.chartCaption}>{view.average}</Text>
             </View>
 
             <Text style={styles.chartTitle}>{info.chartTitle}</Text>
@@ -254,9 +232,9 @@ export default function FeedingScreen() {
               <View style={[styles.gridLine, { top: '50%' }]} />
 
               <View style={styles.bars}>
-                {info.bars.map((value, index) => (
+                {view.bars.map((value, index) => (
                   <View
-                    key={WEEK_AXIS[index]}
+                    key={`${view.axis[index]}-${index}`}
                     style={[
                       styles.bar,
                       { height: `${value}%`, backgroundColor: info.color },
@@ -267,8 +245,8 @@ export default function FeedingScreen() {
             </View>
 
             <View style={styles.axis}>
-              {WEEK_AXIS.map((label) => (
-                <Text key={label} style={styles.axisLabel}>
+              {view.axis.map((label, index) => (
+                <Text key={`${label}-${index}`} style={styles.axisLabel}>
                   {label}
                 </Text>
               ))}
@@ -279,7 +257,12 @@ export default function FeedingScreen() {
           <Text style={styles.sectionTitle}>Histórico recente</Text>
 
           <View style={styles.historyCard}>
-            {info.history.map((item, index) => (
+            {view.history.length === 0 && (
+              <View style={styles.historyRow}>
+                <Text style={styles.historyTime}>Nenhum registro nos últimos 7 dias.</Text>
+              </View>
+            )}
+            {view.history.map((item, index) => (
               <View
                 key={`${item.title}-${item.time}`}
                 style={[
