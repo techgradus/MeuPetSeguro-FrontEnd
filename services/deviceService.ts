@@ -1,15 +1,15 @@
+import type { SetupKind } from '@/constants/deviceSetup';
 import { DeviceType } from '@/constants/deviceTypes';
 import { api } from '@/services/api';
 import type { PetDevice } from '@/types/device';
 
 /**
- * Camada de dispositivos.
- * - register / remove / waitUntilOnline: back-end real (/api/pets/:petId/devices).
- * - scanNetworks / connect (Wi-Fi do aparelho): ainda MOCK. Ao integrar o hardware (ESP32),
- *   troque o corpo destas duas funções.
+ * Camada de dispositivos (back-end real, /api/pets/:petId/devices).
+ *
+ * O Wi-Fi do dispositivo NÃO passa pelo app: o próprio aparelho abre uma rede (MEUPET-<ID>) com uma
+ * página de configuração, onde a pessoa escolhe a rede da casa e digita a senha. Depois disso ele
+ * conecta no broker MQTT e o back-end o marca como ONLINE (é isso que o app espera).
  */
-export type WifiNetwork = { ssid: string; signal: 'Sinal excelente' | 'Sinal bom' | 'Sinal fraco' };
-
 export type ApiDevice = {
   id: string;
   type: 'COLLAR' | 'FOOD_BOWL' | 'WATER_BOWL';
@@ -18,6 +18,8 @@ export type ApiDevice = {
   batteryLevel: number | null;
   lastSyncAt: string | null;
 };
+
+type ApiStation = { stationCode: string; devices: ApiDevice[] };
 
 const TO_API: Record<DeviceType, ApiDevice['type']> = {
   colar: 'COLLAR',
@@ -42,24 +44,10 @@ export function deviceFromApi(d: ApiDevice): PetDevice {
   };
 }
 
-const fakeDelay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
+const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 
 export const deviceService = {
-  async scanNetworks(): Promise<WifiNetwork[]> {
-    // TODO: obter as redes Wi-Fi vistas pelo dispositivo
-    await fakeDelay(500);
-    return [
-      { ssid: 'Casa_Arthur_5G', signal: 'Sinal excelente' },
-      { ssid: 'Casa_arthur', signal: 'Sinal bom' },
-      { ssid: 'Meu_pet_visitantes', signal: 'Sinal bom' },
-    ];
-  },
-
-  async connect(_type: DeviceType, _ssid: string, _password: string): Promise<void> {
-    // TODO: enviar as credenciais Wi-Fi ao dispositivo e aguardar a conexão
-    await fakeDelay(3800);
-  },
-
+  /** Vincula um dispositivo avulso (ex.: colar) ao pet. */
   async register(petId: string, type: DeviceType, deviceCode: string): Promise<PetDevice> {
     const device = await api<ApiDevice>(`/pets/${petId}/devices`, {
       method: 'POST',
@@ -70,22 +58,38 @@ export const deviceService = {
   },
 
   /**
-   * Espera o dispositivo ficar ONLINE no back-end (ele avisa pelo MQTT quando liga).
-   * Hoje quem "liga" o dispositivo é o simulador (npm run mqtt:simulate); com o hardware real
-   * será o próprio aparelho, e este código continua igual. Devolve false se o tempo esgotar.
+   * Vincula o equipamento escolhido no assistente. A estação de potes vira dois dispositivos
+   * (comida e água) criados juntos no servidor: ou entram os dois ou nenhum.
+   */
+  async registerSetup(petId: string, kind: SetupKind, code: string): Promise<PetDevice[]> {
+    if (kind === 'colar') return [await deviceService.register(petId, 'colar', code)];
+
+    const station = await api<ApiStation>(`/pets/${petId}/devices/station`, {
+      method: 'POST',
+      body: { stationCode: code.trim() },
+      auth: true,
+    });
+    return station.devices.map(deviceFromApi);
+  },
+
+  /**
+   * Espera TODOS os dispositivos ficarem ONLINE no back-end (eles avisam pelo MQTT quando ligam).
+   * Hoje quem "liga" é o simulador (npm run mqtt:simulate); com o hardware real será o próprio aparelho
+   * e este código continua igual. Devolve false se o tempo esgotar.
    */
   async waitUntilOnline(
     petId: string,
-    deviceId: string,
+    deviceIds: string[],
     options: { timeoutMs?: number; intervalMs?: number; shouldStop?: () => boolean } = {},
   ): Promise<boolean> {
-    const { timeoutMs = 30000, intervalMs = 2000, shouldStop } = options;
+    const { timeoutMs = 60000, intervalMs = 2000, shouldStop } = options;
     const deadline = Date.now() + timeoutMs;
 
     while (Date.now() < deadline && !shouldStop?.()) {
-      const device = await api<ApiDevice>(`/pets/${petId}/devices/${deviceId}`, { auth: true });
-      if (device.status === 'ONLINE') return true;
-      await fakeDelay(intervalMs);
+      const devices = await api<ApiDevice[]>(`/pets/${petId}/devices`, { auth: true });
+      const allOnline = deviceIds.every((id) => devices.some((d) => d.id === id && d.status === 'ONLINE'));
+      if (allOnline) return true;
+      await sleep(intervalMs);
     }
     return false;
   },

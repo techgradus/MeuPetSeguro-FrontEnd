@@ -2,7 +2,7 @@ import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceF
 import { PetSelector } from '@/components/pets/PetSelector';
 import { Button } from '@/components/ui/Button';
 import { themed } from '@/constants/darkTheme';
-import { DEVICE_TYPES, DeviceType } from '@/constants/deviceTypes';
+import { getSetupStatus, SETUP_OPTIONS, SetupKind, SetupStatus } from '@/constants/deviceSetup';
 import { usePets } from '@/hooks/usePets';
 import { newPetDraft } from '@/services/newPetDraft';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
@@ -17,7 +17,7 @@ export default function DeviceTypeScreen() {
   const router = useRouter();
   const { dark, bg } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
-  const [pickedType, setPickedType] = useState<DeviceType | undefined>(newDeviceDraft.get().type);
+  const [pickedKind, setPickedKind] = useState<SetupKind | undefined>(newDeviceDraft.get().kind);
 
   const { pets, loading } = usePets();
   const [petId, setPetId] = useState<string | undefined>(newDeviceDraft.get().petId);
@@ -25,13 +25,20 @@ export default function DeviceTypeScreen() {
   const selectedPet = pets.find((p) => p.id === selectedPetId);
   const noPets = !loading && pets.length === 0;
 
-  const linkedTypes = useMemo(() => new Set(selectedPet?.devices.map((d) => d.type) ?? []), [selectedPet]);
-  const allLinked = !!selectedPet && DEVICE_TYPES.every((item) => linkedTypes.has(item.type));
-  const type = pickedType && !linkedTypes.has(pickedType) ? pickedType : undefined;
+  // Cada pet tem uma coleira e uma estação de potes: o que já existe fica bloqueado.
+  const statusByKind = useMemo(() => {
+    const devices = selectedPet?.devices ?? [];
+    return Object.fromEntries(
+      SETUP_OPTIONS.map((option) => [option.kind, getSetupStatus(option.kind, devices)]),
+    ) as Record<SetupKind, SetupStatus>;
+  }, [selectedPet]);
+  const allLinked = !!selectedPet && SETUP_OPTIONS.every((option) => statusByKind[option.kind] === 'linked');
+  // Trocar de pet pode bloquear a opção que estava marcada: nesse caso a escolha é descartada.
+  const kind = pickedKind && statusByKind[pickedKind] === 'free' ? pickedKind : undefined;
 
   const next = () => {
-    if (!type || !selectedPetId || linkedTypes.has(type)) return;
-    newDeviceDraft.set({ type, petId: selectedPetId });
+    if (!kind || !selectedPetId) return;
+    newDeviceDraft.set({ kind, petId: selectedPetId });
     router.push('/novo-dispositivo/preparar');
   };
 
@@ -71,32 +78,43 @@ export default function DeviceTypeScreen() {
       )}
 
       <View style={styles.list}>
-        {DEVICE_TYPES.map((item) => {
-          const selected = item.type === type;
-          const linked = linkedTypes.has(item.type);
+        {SETUP_OPTIONS.map((item) => {
+          const selected = item.kind === kind;
+          const status = statusByKind[item.kind];
+          const blocked = status !== 'free';
+          const petName = selectedPet?.name ?? 'O pet';
+          const description =
+            status === 'linked'
+              ? `${petName} já tem este dispositivo`
+              : status === 'partial'
+                ? `${petName} já tem um pote avulso. Remova-o em Meus Pets para usar a estação.`
+                : item.description;
           return (
             <TouchableOpacity
-              key={item.type}
+              key={item.kind}
               activeOpacity={0.85}
-              disabled={linked}
-              onPress={() => setPickedType(item.type)}
+              disabled={blocked}
+              onPress={() => setPickedKind(item.kind)}
               accessibilityRole="radio"
-              accessibilityState={{ selected, disabled: linked }}
-              style={[styles.card, selected && styles.cardSelected, linked && styles.cardLinked]}
+              accessibilityState={{ selected, disabled: blocked }}
+              style={[styles.card, selected && styles.cardSelected, blocked && styles.cardLinked]}
             >
               <View style={[styles.icon, { backgroundColor: bg(item.softColor) }]}>
                 <Ionicons name={item.icon} size={20} color={item.color} />
               </View>
               <View style={styles.texts}>
                 <Text style={styles.label}>{item.label}</Text>
-                <Text style={styles.description}>
-                  {linked ? `${selectedPet?.name ?? 'O pet'} já tem este dispositivo` : item.description}
-                </Text>
+                <Text style={styles.description}>{description}</Text>
               </View>
-              {linked ? (
+              {status === 'linked' ? (
                 <View style={styles.linkedBadge}>
                   <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
                   <Text style={styles.linkedBadgeText}>Conectado</Text>
+                </View>
+              ) : status === 'partial' ? (
+                <View style={styles.linkedBadge}>
+                  <Ionicons name="alert-circle-outline" size={14} color={colors.textMuted} />
+                  <Text style={[styles.linkedBadgeText, { color: colors.textMuted }]}>Indisponível</Text>
                 </View>
               ) : (
                 <View style={[styles.radio, selected && styles.radioSelected]}>
@@ -113,12 +131,10 @@ export default function DeviceTypeScreen() {
           Todos os dispositivos de {selectedPet?.name} já estão conectados. Para trocar um, remova o atual em Meus Pets.
         </Text>
       ) : (
-        linkedTypes.size > 0 && (
-          <Text style={styles.limitHint}>Cada pet pode ter um dispositivo de cada tipo.</Text>
-        )
+        <Text style={styles.limitHint}>Cada pet tem uma coleira e uma estação de potes (comida e água).</Text>
       )}
 
-      <Button title="Continuar" onPress={next} disabled={!type || !selectedPetId} />
+      <Button title="Continuar" onPress={next} disabled={!kind || !selectedPetId} />
     </DeviceFlowLayout>
   );
 }

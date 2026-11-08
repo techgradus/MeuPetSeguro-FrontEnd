@@ -1,10 +1,13 @@
 import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceFlowLayout';
 import { Button } from '@/components/ui/Button';
+import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
 import { TextField } from '@/components/ui/TextField';
 import { themed } from '@/constants/darkTheme';
-import { getDeviceType } from '@/constants/deviceTypes';
+import { getSetupOption, normalizeSetupCode, validateSetupCode } from '@/constants/deviceSetup';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { errorMessage } from '@/services/api';
+import { deviceService } from '@/services/deviceService';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -15,21 +18,59 @@ export default function PrepareDeviceScreen() {
   const router = useRouter();
   const { dark } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
-  const info = getDeviceType(newDeviceDraft.get().type ?? 'colar');
+  const option = getSetupOption(newDeviceDraft.get().kind ?? 'colar');
   const [code, setCode] = useState(newDeviceDraft.get().deviceCode);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const next = () => {
-    if (!code.trim()) return;
-    newDeviceDraft.set({ deviceCode: code.trim() });
-    router.push('/novo-dispositivo/rede');
+  // O erro de formato só aparece depois que a pessoa começa a digitar
+  const codeError = code.trim() ? validateSetupCode(option.kind, code) : null;
+  const canContinue = !!code.trim() && !codeError && !loading;
+
+  /**
+   * Vincula o dispositivo ao pet já aqui: assim o servidor já aceita as mensagens dele quando ele
+   * ligar no Wi-Fi, e qualquer problema com o código (já em uso, pet já tem um) aparece antes da
+   * pessoa configurar a rede.
+   */
+  const next = async () => {
+    const { petId, kind, registered } = newDeviceDraft.get();
+    const normalized = normalizeSetupCode(code);
+    if (!petId || !kind || validateSetupCode(kind, normalized)) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const sameAsBefore =
+        !!registered && registered.petId === petId && registered.kind === kind && registered.code === normalized;
+
+      if (!sameAsBefore) {
+        // Voltou e trocou o código ou o pet: o vínculo anterior deixa de valer
+        if (registered) {
+          for (const device of registered.devices) {
+            await deviceService.remove(registered.petId, device.id).catch(() => undefined);
+          }
+          newDeviceDraft.set({ registered: undefined });
+        }
+
+        const devices = await deviceService.registerSetup(petId, kind, normalized);
+        newDeviceDraft.set({ deviceCode: normalized, registered: { petId, kind, code: normalized, devices } });
+      }
+
+      router.push('/novo-dispositivo/rede');
+    } catch (e) {
+      setError(errorMessage(e, 'Não foi possível vincular o dispositivo. Tente novamente.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <DeviceFlowLayout step={2} onBack={() => router.back()}>
       <DeviceStepHeader
         kicker="Prepare o dispositivo"
-        title={info.turnOn}
-        subtitle="Mantenha o dispositivo próximo ao roteador durante a configuração."
+        title={option.turnOn}
+        subtitle="Ligue o dispositivo e encontre o código impresso na etiqueta."
       />
 
       <View style={styles.illustration}>
@@ -47,26 +88,36 @@ export default function PrepareDeviceScreen() {
       <View style={styles.info}>
         <View style={styles.infoHeader}>
           <MaterialCommunityIcons name="router-wireless" size={20} color={colors.primary} />
-          <Text style={styles.infoTitle}>A conexão é feita pelo Wi-Fi da casa</Text>
+          <Text style={styles.infoTitle}>O dispositivo se conecta sozinho à internet</Text>
         </View>
         <Text style={styles.infoText}>
-          Não usamos Bluetooth, pois seu alcance é curto. Conecte o dispositivo à mesma rede Wi-Fi da
-          sua casa para acompanhar seu pet mesmo estando fora.
+          Na próxima etapa você configura o Wi-Fi da casa direto no dispositivo. Depois disso ele envia os dados
+          pela internet, e o celular não precisa estar na mesma rede para acompanhar seu pet.
         </Text>
       </View>
+
+      {!!error && <FeedbackBanner type="error" message={error} />}
 
       <TextField
         label="Código do dispositivo"
         icon="qr-code-outline"
-        placeholder="Ex.: COLAR-1A2B3C"
+        placeholder={`Ex.: ${option.codeExample}`}
         autoCapitalize="characters"
         autoCorrect={false}
         value={code}
-        onChangeText={setCode}
+        onChangeText={(value) => {
+          setCode(value);
+          setError(null);
+        }}
+        error={codeError ?? undefined}
       />
-      <Text style={styles.codeHint}>O código fica na etiqueta do dispositivo ou na embalagem.</Text>
+      <Text style={styles.codeHint}>
+        {option.kind === 'estacao'
+          ? 'A estação tem um só código na etiqueta, que vale para os dois potes (comida e água).'
+          : 'O código fica na etiqueta do dispositivo ou na embalagem.'}
+      </Text>
 
-      <Button title="O dispositivo está ligado" onPress={next} disabled={!code.trim()} />
+      <Button title="Vincular dispositivo" onPress={next} disabled={!canContinue} loading={loading} />
     </DeviceFlowLayout>
   );
 }

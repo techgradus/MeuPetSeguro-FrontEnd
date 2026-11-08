@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const STEPS = ['Dispositivo encontrado', 'Rede identificada', 'Finalizando conexão'];
+const STEPS = ['Dispositivo vinculado ao pet', 'Dispositivo conectado e enviando dados'];
 
 /** Anel girando com o ícone de Wi-Fi no centro. Com `failed`, para de girar e mostra o aviso de erro. */
 function ConnectingRing({ failed }: { failed: boolean }) {
@@ -56,14 +56,11 @@ export default function ConnectingScreen() {
   const router = useRouter();
   const { dark } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
-  const draft = newDeviceDraft.get();
   const [done, setDone] = useState(0); // quantos itens do checklist já foram concluídos
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const finished = useRef(false);
-  // Guarda o dispositivo já vinculado: se a espera falhar, "tentar novamente" só espera de novo
-  const registered = useRef<{ petId: string; id: string } | null>(null);
 
   const goToDone = useCallback(() => {
     if (finished.current) return;
@@ -73,46 +70,40 @@ export default function ConnectingScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    const t1 = setTimeout(() => setDone(1), 1200);
-    const t2 = setTimeout(() => setDone(2), 2400);
-    let t3: ReturnType<typeof setTimeout>;
+    let t3: ReturnType<typeof setTimeout> | undefined;
 
     (async () => {
       try {
-        if (!registered.current) {
-          // Wi-Fi do aparelho (ainda simulado) e vínculo com o pet no back-end
-          await deviceService.connect(draft.type ?? 'colar', draft.ssid ?? '', draft.password);
-          if (!draft.petId || !draft.type) throw new Error('Escolha o pet e o tipo do dispositivo.');
-          const device = await deviceService.register(draft.petId, draft.type, draft.deviceCode);
-          registered.current = { petId: draft.petId, id: device.id };
-        }
+        // O vínculo com o pet foi feito na etapa "Preparar"; aqui só esperamos o dispositivo aparecer online
+        const registered = newDeviceDraft.get().registered;
+        if (!registered) throw new Error('Informe o código do dispositivo antes de conectar.');
+        setDone(1);
 
-        // Espera o dispositivo ficar online (ele avisa o back-end quando liga)
-        const online = await deviceService.waitUntilOnline(registered.current.petId, registered.current.id, {
-          shouldStop: () => cancelled,
-        });
+        const online = await deviceService.waitUntilOnline(
+          registered.petId,
+          registered.devices.map((device) => device.id),
+          { shouldStop: () => cancelled },
+        );
         if (cancelled) return;
+
         if (!online) {
-          clearTimeout(t1);
-          clearTimeout(t2);
           setNotice(
-            'O dispositivo foi vinculado, mas ainda não respondeu. Confira se ele está ligado. ',
+            'O dispositivo foi vinculado, mas ainda não apareceu online. Confira se ele está ligado e se o Wi-Fi ' +
+              'foi salvo na página de configuração. (No modo de teste, rode o simulador: npm run mqtt:simulate.)',
           );
           return;
         }
-        setDone(3);
+
+        setDone(2);
         t3 = setTimeout(goToDone, 800);
       } catch (e) {
         if (cancelled) return;
-        // Falhou: o checklist para e volta ao início (nada foi concluído)
-        clearTimeout(t1);
-        clearTimeout(t2);
         setDone(0);
-        setError(errorMessage(e, 'Não foi possível vincular o dispositivo. Tente novamente.'));
+        setError(errorMessage(e, 'Não foi possível verificar o dispositivo. Tente novamente.'));
       }
     })();
 
-    return () => { cancelled = true; clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => { cancelled = true; clearTimeout(t3); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
 
@@ -128,10 +119,10 @@ export default function ConnectingScreen() {
   const kicker = error ? 'ALGO DEU ERRADO' : notice ? 'QUASE LÁ' : 'SÓ UM INSTANTE';
   const title = error ? 'Não foi possível conectar' : notice ? 'Dispositivo sem resposta' : 'Conectando ao dispositivo...';
   const subtitle = error
-    ? 'Confira os dados e tente novamente.'
+    ? 'Confira sua conexão com a internet e tente novamente.'
     : notice
       ? 'O dispositivo foi vinculado, mas ainda não respondeu.'
-      : `Estamos configurando o acesso pela rede ${draft.ssid ?? 'Wi-Fi'}.`;
+      : 'Aguardando o dispositivo entrar no Wi-Fi e avisar o servidor. Pode levar até 1 minuto.';
 
   return (
     <DeviceFlowLayout step={4} onBack={() => router.back()}>
@@ -162,6 +153,9 @@ export default function ConnectingScreen() {
         <View style={styles.errorBox}>
           <FeedbackBanner type="error" message={notice} />
           <Button title="Tentar novamente" onPress={retry} />
+          <TouchableOpacity onPress={() => router.back()} style={styles.skip} hitSlop={8}>
+            <Text style={styles.skipText}>Rever as instruções do Wi-Fi</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={goToDone} style={styles.skip} hitSlop={8}>
             <Text style={styles.skipText}>Continuar mesmo assim</Text>
           </TouchableOpacity>
@@ -172,12 +166,8 @@ export default function ConnectingScreen() {
         <View style={styles.errorBox}>
           <FeedbackBanner type="error" message={error} />
           <Button title="Tentar novamente" onPress={retry} />
-          <TouchableOpacity
-            onPress={() => router.navigate('/novo-dispositivo/preparar')}
-            style={styles.skip}
-            hitSlop={8}
-          >
-            <Text style={styles.skipText}>Corrigir o código do dispositivo</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.skip} hitSlop={8}>
+            <Text style={styles.skipText}>Voltar às instruções do Wi-Fi</Text>
           </TouchableOpacity>
         </View>
       )}

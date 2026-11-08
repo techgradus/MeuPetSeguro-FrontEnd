@@ -2,38 +2,44 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, fonts, radius } from '@/constants/petTheme';
-import { getDeviceType } from '@/constants/deviceTypes';
 import type { PetDevice } from '@/types/device';
+import { DeviceGroup, getGroupInfo, groupDevices } from '@/utils/deviceGroups';
 
 type Props = {
   devices: PetDevice[];
-  onRemove: (device: PetDevice) => void;
+  /** Remove o equipamento inteiro (a estação de potes leva os dois potes juntos). */
+  onRemove: (group: DeviceGroup) => void;
+};
+
+const statusText = (group: DeviceGroup) => {
+  if (group.online) return `Online${group.battery != null ? ` · bateria ${group.battery}%` : ''}`;
+  if (group.onlineCount > 0) return 'Parcialmente online';
+  return 'Offline';
 };
 
 export function PetDeviceList({ devices, onRemove }: Props) {
-  if (devices.length === 0) return null;
+  const groups = groupDevices(devices);
+  if (groups.length === 0) return null;
 
   return (
     <View style={styles.box}>
-      {devices.map((device, index) => {
-        const info = getDeviceType(device.type);
-        const status = device.online
-          ? `Online${device.battery != null ? ` · bateria ${device.battery}%` : ''}`
-          : 'Offline';
+      {groups.map((group, index) => {
+        const info = getGroupInfo(group);
+        const status = statusText(group);
 
         return (
-          <View key={device.id} style={[styles.row, index > 0 && styles.rowBorder]}>
+          <View key={group.key} style={[styles.row, index > 0 && styles.rowBorder]}>
             <View style={[styles.icon, { backgroundColor: info.softColor }]}>
               <Ionicons name={info.icon} size={18} color={info.color} />
             </View>
             <View style={styles.texts}>
               <Text style={styles.label}>{info.label}</Text>
               <Text style={styles.meta} numberOfLines={1}>
-                {device.code} · {status}
+                {group.code} · {status}
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => onRemove(device)}
+              onPress={() => onRemove(group)}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={`Remover ${info.label}`}

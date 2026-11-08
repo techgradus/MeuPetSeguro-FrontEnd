@@ -9,7 +9,7 @@ import { BottomTabBar } from '@/components/ui/BottomTabBar';
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
-import { DEVICE_TYPES, getDeviceType } from '@/constants/deviceTypes';
+import { DEVICE_TYPES } from '@/constants/deviceTypes';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
@@ -22,9 +22,9 @@ import { errorMessage } from '@/services/api';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { newPetDraft } from '@/services/newPetDraft';
 import { petService } from '@/services/petService';
-import type { PetDevice } from '@/types/device';
 import { PetFormValues, Species } from '@/types/pet';
 import { confirmAction, notify } from '@/utils/dialogs';
+import { DeviceGroup, getGroupInfo, groupDevices } from '@/utils/deviceGroups';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -129,19 +129,23 @@ export default function MeusPetsScreen() {
     }
   };
 
-  const removeDevice = (device: PetDevice) => {
+  const removeDevice = (group: DeviceGroup) => {
     if (!selected) return;
-    const label = getDeviceType(device.type).label;
+    const label = getGroupInfo(group).label;
     confirmAction({
       title: 'Remover dispositivo',
-      message: `Desvincular ${label} (${device.code}) de ${selected.name}?`,
+      message: `Desvincular ${label} (${group.code}) de ${selected.name}?`,
       confirmLabel: 'Remover',
       onConfirm: async () => {
         try {
-          await deviceService.remove(selected.id, device.id);
-          await reload();
+          // A estação de potes são dois dispositivos no servidor: sai tudo junto
+          for (const device of group.devices) {
+            await deviceService.remove(selected.id, device.id);
+          }
         } catch (e) {
           notify('Não foi possível remover', errorMessage(e, 'Tente novamente em instantes.'));
+        } finally {
+          await reload();
         }
       },
     });
@@ -177,12 +181,13 @@ export default function MeusPetsScreen() {
 
   const { upToDate, pending } = vaccineSummary ?? selected.vaccines;
   const devices = selected.devices;
+  const deviceGroups = groupDevices(devices);
   const deviceTitle =
-    devices.length === 0
+    deviceGroups.length === 0
       ? 'Nenhum dispositivo'
-      : devices.length === 1
-        ? getDeviceType(devices[0].type).label
-        : `${devices.length} dispositivos`;
+      : deviceGroups.length === 1
+        ? getGroupInfo(deviceGroups[0]).label
+        : `${deviceGroups.length} dispositivos`;
   // Cada pet tem no máximo um dispositivo de cada tipo; com todos conectados não há o que adicionar
   const allDevicesLinked = DEVICE_TYPES.every((item) => devices.some((d) => d.type === item.type));
   const deviceBadge = devices.length === 0 ? 'Não vinculado' : devices.some((d) => d.online) ? 'Online' : 'Offline';
@@ -269,6 +274,7 @@ export default function MeusPetsScreen() {
       <PetDeviceList devices={devices} onRemove={removeDevice} />
 
       <View style={styles.saveBox}>
+        {/* O aviso fica junto do botão: quem rolou até o fim da tela vê o resultado sem subir */}
         {saved && <FeedbackBanner message={`Dados de ${form.name.trim()} salvos com sucesso.`} />}
         {!!saveError && <FeedbackBanner type="error" message={saveError} />}
         <Button title="Salvar alterações" onPress={handleSave} loading={saving} />
