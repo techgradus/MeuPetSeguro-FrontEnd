@@ -25,6 +25,7 @@ import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { confirmAction, notify } from '@/utils/dialogs';
+import { validateName } from '@/utils/validators';
 
 type FieldKey = 'name' | 'email' | 'phone';
 
@@ -82,7 +83,8 @@ export default function AccountScreen() {
   );
 
   const emailValid = /^\S+@\S+\.\S+$/.test(form.email.trim());
-  const nameValid = form.name.trim().length > 1;
+  const nameError = validateName(form.name);
+  const nameValid = !nameError;
   const phoneDigits = form.phone.replace(/\D/g, '');
   const phoneValid = phoneDigits.length === 0 || phoneDigits.length === 10 || phoneDigits.length === 11;
   const canSave = emailValid && nameValid && phoneValid;
@@ -182,7 +184,7 @@ export default function AccountScreen() {
       placeholder: 'Seu nome',
       keyboardType: 'default',
       autoCapitalize: 'words',
-      error: nameValid ? undefined : 'Informe seu nome.',
+      error: nameError ?? undefined,
     },
     {
       key: 'email',

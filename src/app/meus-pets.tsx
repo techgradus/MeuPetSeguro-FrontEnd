@@ -212,9 +212,6 @@ export default function MeusPetsScreen() {
         <PetAvatar source={selected.photo} onPress={changePhoto} />
       </View>
 
-      {saved && <FeedbackBanner message={`Dados de ${form.name.trim()} salvos com sucesso.`} />}
-      {!!saveError && <FeedbackBanner type="error" message={saveError} />}
-
       <View style={styles.row}>
         <LabeledField label="Nome" value={form.name} onChangeText={(t) => setField('name', t)} error={errors.name} />
       </View>
@@ -255,7 +252,7 @@ export default function MeusPetsScreen() {
 
       <InfoCard
         icon="wifi"
-        caption={`Dispositivos ${selected.species === 'Gato' ? 'da' : 'do'} ${selected.name}`}
+        caption={`Dispositivos do`}
         title={deviceTitle}
         subtitle={
           allDevicesLinked
@@ -272,6 +269,8 @@ export default function MeusPetsScreen() {
       <PetDeviceList devices={devices} onRemove={removeDevice} />
 
       <View style={styles.saveBox}>
+        {saved && <FeedbackBanner message={`Dados de ${form.name.trim()} salvos com sucesso.`} />}
+        {!!saveError && <FeedbackBanner type="error" message={saveError} />}
         <Button title="Salvar alterações" onPress={handleSave} loading={saving} />
       </View>
     </ScreenContainer>

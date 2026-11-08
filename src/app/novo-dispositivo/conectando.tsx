@@ -14,21 +14,33 @@ import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'reac
 
 const STEPS = ['Dispositivo encontrado', 'Rede identificada', 'Finalizando conexão'];
 
-/** Anel girando com o ícone de Wi-Fi no centro. */
-function ConnectingRing() {
+/** Anel girando com o ícone de Wi-Fi no centro. Com `failed`, para de girar e mostra o aviso de erro. */
+function ConnectingRing({ failed }: { failed: boolean }) {
   const spin = useRef(new Animated.Value(0)).current;
-  const { dark } = useAppTheme();
+  const { dark, bg } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
 
   useEffect(() => {
+    if (failed) return;
     const loop = Animated.loop(
       Animated.timing(spin, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true })
     );
     loop.start();
     return () => loop.stop();
-  }, [spin]);
+  }, [spin, failed]);
 
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+
+  if (failed) {
+    return (
+      <View style={styles.ringBox}>
+        <View style={[styles.ring, { borderColor: bg(colors.errorLight), borderTopColor: colors.error, borderRightColor: colors.error }]} />
+        <View style={[styles.ringInner, { backgroundColor: bg(colors.errorLight) }]}>
+          <Ionicons name="alert-circle-outline" size={46} color={colors.error} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.ringBox}>
@@ -81,6 +93,8 @@ export default function ConnectingScreen() {
         });
         if (cancelled) return;
         if (!online) {
+          clearTimeout(t1);
+          clearTimeout(t2);
           setNotice(
             'O dispositivo foi vinculado, mas ainda não respondeu. Confira se ele está ligado. ',
           );
@@ -90,6 +104,10 @@ export default function ConnectingScreen() {
         t3 = setTimeout(goToDone, 800);
       } catch (e) {
         if (cancelled) return;
+        // Falhou: o checklist para e volta ao início (nada foi concluído)
+        clearTimeout(t1);
+        clearTimeout(t2);
+        setDone(0);
         setError(errorMessage(e, 'Não foi possível vincular o dispositivo. Tente novamente.'));
       }
     })();
@@ -105,15 +123,23 @@ export default function ConnectingScreen() {
     setAttempt((a) => a + 1);
   };
 
+  // Erro ou dispositivo sem resposta: a animação para e os textos deixam de dizer "conectando"
+  const failed = !!error || !!notice;
+  const kicker = error ? 'ALGO DEU ERRADO' : notice ? 'QUASE LÁ' : 'SÓ UM INSTANTE';
+  const title = error ? 'Não foi possível conectar' : notice ? 'Dispositivo sem resposta' : 'Conectando ao dispositivo...';
+  const subtitle = error
+    ? 'Confira os dados e tente novamente.'
+    : notice
+      ? 'O dispositivo foi vinculado, mas ainda não respondeu.'
+      : `Estamos configurando o acesso pela rede ${draft.ssid ?? 'Wi-Fi'}.`;
+
   return (
     <DeviceFlowLayout step={4} onBack={() => router.back()}>
       <View style={styles.center}>
-        <ConnectingRing />
-        <Text style={styles.kicker}>SÓ UM INSTANTE</Text>
-        <Text style={styles.title}>Conectando ao dispositivo...</Text>
-        <Text style={styles.subtitle}>
-          Estamos configurando o acesso pela rede {draft.ssid ?? 'Wi-Fi'}.
-        </Text>
+        <ConnectingRing failed={failed} />
+        <Text style={styles.kicker}>{kicker}</Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
 
       <View style={styles.checklist}>
