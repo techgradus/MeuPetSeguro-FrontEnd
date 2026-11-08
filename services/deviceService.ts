@@ -3,8 +3,10 @@ import { api } from '@/services/api';
 import type { PetDevice } from '@/types/device';
 
 /**
- * Camada de dispositivos (MOCK).
- * Ao integrar o hardware (ESP32 / MQTT), troque o corpo destas funções.
+ * Camada de dispositivos.
+ * - register / remove / waitUntilOnline: back-end real (/api/pets/:petId/devices).
+ * - scanNetworks / connect (Wi-Fi do aparelho): ainda MOCK. Ao integrar o hardware (ESP32),
+ *   troque o corpo destas duas funções.
  */
 export type WifiNetwork = { ssid: string; signal: 'Sinal excelente' | 'Sinal bom' | 'Sinal fraco' };
 
@@ -65,6 +67,27 @@ export const deviceService = {
       auth: true,
     });
     return deviceFromApi(device);
+  },
+
+  /**
+   * Espera o dispositivo ficar ONLINE no back-end (ele avisa pelo MQTT quando liga).
+   * Hoje quem "liga" o dispositivo é o simulador (npm run mqtt:simulate); com o hardware real
+   * será o próprio aparelho, e este código continua igual. Devolve false se o tempo esgotar.
+   */
+  async waitUntilOnline(
+    petId: string,
+    deviceId: string,
+    options: { timeoutMs?: number; intervalMs?: number; shouldStop?: () => boolean } = {},
+  ): Promise<boolean> {
+    const { timeoutMs = 30000, intervalMs = 2000, shouldStop } = options;
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline && !shouldStop?.()) {
+      const device = await api<ApiDevice>(`/pets/${petId}/devices/${deviceId}`, { auth: true });
+      if (device.status === 'ONLINE') return true;
+      await fakeDelay(intervalMs);
+    }
+    return false;
   },
 
   async remove(petId: string, deviceId: string): Promise<void> {

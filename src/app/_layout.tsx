@@ -14,6 +14,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 // Mantém a tela nativa de abertura até as fontes carregarem.
 SplashScreen.preventAutoHideAsync();
@@ -43,6 +44,9 @@ function AppStack() {
 
   const first = segments[0];
   const isPublic = !first || first === 'index' || PUBLIC_ROUTES.includes(first);
+
+  // Registra o aparelho no FCM ao logar e abre a tela de alertas quando o usuário toca na notificação.
+  usePushNotifications(!isLoading && !!navigationState?.key);
 
   // Esconde a splash nativa quando a sessão já foi lida.
   useEffect(() => {

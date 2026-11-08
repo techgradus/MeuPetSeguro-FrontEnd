@@ -8,178 +8,17 @@ import PhoneFrame from '@/components/PhoneFrame';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
-import type { PetId } from '@/data/pets';
-import { useDashboardPets } from '@/hooks/useDashboardPets';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { useDashboardPets } from '@/hooks/useDashboardPets';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
-
-/* ============================================================
-   DADOS MOCK DA ATIVIDADE
-   Quando existir API, troque por dados reais do pet.
-============================================================ */
-
-type Period = 'today' | 'week';
-
-type Bar = {
-  /** Altura relativa, de 0 a 100 */
-  value: number;
-  /** Barra escura (destaque) */
-  intense?: boolean;
-};
-
-type Stat = {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  value: string;
-  hint: string;
-};
-
-type PeriodData = {
-  activeTime: string;
-  variation: string;
-  bars: Bar[];
-  axis: string[];
-  summaryTitle: string;
-  stats: Stat[];
-};
+import { useActivityReport } from '@/hooks/usePetLive';
+import type { Period } from '@/services/readingService';
+import { toActivityEvents, toPeriodData } from '@/utils/petLive';
 
 const PERIOD_LABELS: Record<Period, string> = {
   today: 'Hoje',
   week: '7 dias',
 };
-
-const todayBars: Bar[] = [
-  { value: 26, intense: true },
-  { value: 18 },
-  { value: 36 },
-  { value: 46, intense: true },
-  { value: 82 },
-  { value: 67 },
-  { value: 98, intense: true },
-  { value: 77 },
-  { value: 52 },
-  { value: 34, intense: true },
-  { value: 21 },
-  { value: 38 },
-];
-
-const weekBars: Bar[] = [
-  { value: 50 },
-  { value: 70, intense: true },
-  { value: 55 },
-  { value: 98 },
-  { value: 74, intense: true },
-  { value: 34 },
-  { value: 88 },
-];
-
-const todayAxis = ['00h', '06h', '12h', '18h', '24h'];
-const weekAxis = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-
-const todayStats: Stat[] = [
-  { label: 'Passos', icon: 'paw-outline', value: '4.821', hint: 'Meta: 6.000' },
-  {
-    label: 'Distância',
-    icon: 'speedometer-outline',
-    value: '3,2 km',
-    hint: '+0,4 km',
-  },
-  {
-    label: 'Repouso',
-    icon: 'pulse-outline',
-    value: '5h 42m',
-    hint: 'Dentro do normal',
-  },
-  {
-    label: 'Pico ativo',
-    icon: 'sparkles-outline',
-    value: '11:40',
-    hint: '32 minutos',
-  },
-];
-
-const weekStats: Stat[] = [
-  { label: 'Passos', icon: 'paw-outline', value: '33.747', hint: 'Meta: 42.000' },
-  {
-    label: 'Distância',
-    icon: 'speedometer-outline',
-    value: '22,4 km',
-    hint: '+2,1 km',
-  },
-  {
-    label: 'Repouso',
-    icon: 'pulse-outline',
-    value: '39h 54m',
-    hint: 'Dentro do normal',
-  },
-  {
-    label: 'Pico ativo',
-    icon: 'sparkles-outline',
-    value: '11:40',
-    hint: 'Qui · 32 minutos',
-  },
-];
-
-const activityByPet: Record<PetId, Record<Period, PeriodData>> = {
-  Rex: {
-    today: {
-      activeTime: '2h 34min',
-      variation: '+12%',
-      bars: todayBars,
-      axis: todayAxis,
-      summaryTitle: 'Resumo de hoje',
-      stats: todayStats,
-    },
-    week: {
-      activeTime: '16h 20min',
-      variation: '+12%',
-      bars: weekBars,
-      axis: weekAxis,
-      summaryTitle: 'Resumo dos 7 dias',
-      stats: weekStats,
-    },
-  },
-  Mia: {
-    today: {
-      activeTime: '3h 12min',
-      variation: '+8%',
-      bars: todayBars,
-      axis: todayAxis,
-      summaryTitle: 'Resumo de hoje',
-      stats: todayStats,
-    },
-    week: {
-      activeTime: '21h 08min',
-      variation: '+8%',
-      bars: weekBars,
-      axis: weekAxis,
-      summaryTitle: 'Resumo dos 7 dias',
-      stats: weekStats,
-    },
-  },
-};
-
-type ActivityEvent = {
-  title: string;
-  time: string;
-  kind: 'intense' | 'rest';
-  duration: string;
-};
-
-const events: ActivityEvent[] = [
-  {
-    title: 'Passeio matinal',
-    time: '08:12 · atividade intensa',
-    kind: 'intense',
-    duration: '34 min',
-  },
-  {
-    title: 'Período de descanso',
-    time: '09:03 · repouso',
-    kind: 'rest',
-    duration: '1h 18m',
-  },
-];
 
 /* ============================================================
    TELA
@@ -194,6 +33,7 @@ export default function ActivityScreen() {
   const pet = pets.find((p) => p.id === petParam) ?? pets[0];
 
   const [period, setPeriod] = useState<Period>('today');
+  const { data: report } = useActivityReport(pet?.id, period);
 
   const layout = useLayout();
   const { s } = layout;
@@ -214,7 +54,9 @@ export default function ActivityScreen() {
   // Ainda carregando os pets
   if (!pet) return null;
 
-  const data = activityByPet[pet.sample][period];
+  // Dados reais da coleira (atualizam sozinhos)
+  const data = toPeriodData(report, period);
+  const events = toActivityEvents(report);
 
   function goBack() {
     if (router.canGoBack()) {
@@ -326,8 +168,14 @@ export default function ActivityScreen() {
               <Text style={styles.heroLabel}>Tempo ativo</Text>
               <Text style={styles.heroValue}>{data.activeTime}</Text>
               <Text style={styles.heroNote}>
-                <Text style={styles.heroDelta}>{data.variation}</Text>{' '}
-                comparado ao habitual
+                {data.variation ? (
+                  <>
+                    <Text style={styles.heroDelta}>{data.variation}</Text>{' '}
+                    comparado ao habitual
+                  </>
+                ) : (
+                  'ainda sem base para comparar'
+                )}
               </Text>
             </View>
           </View>
@@ -411,9 +259,14 @@ export default function ActivityScreen() {
 
           {/* EVENTOS */}
           <View style={styles.eventsCard}>
+            {events.length === 0 && (
+              <View style={styles.eventRow}>
+                <Text style={styles.statHint}>Nenhum evento de atividade registrado ainda.</Text>
+              </View>
+            )}
             {events.map((event, index) => (
               <View
-                key={event.title}
+                key={`${event.title}-${event.time}`}
                 style={[
                   styles.eventRow,
                   index > 0 && styles.eventRowDivider,

@@ -22,6 +22,7 @@ import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { petService } from '@/services/petService';
 import type { Species as PetSpecies } from '@/types/pet';
 
@@ -100,14 +101,15 @@ export default function NewPetScreen() {
     }
   }
 
-  async function register() {
+
+  async function register(openAssistant: boolean) {
     if (saving) return;
 
     setSaving(true);
     setError(null);
 
     try {
-      await petService.add({
+      const pet = await petService.add({
         name: form.name,
         species: form.species as PetSpecies,
         breed: form.breed,
@@ -116,6 +118,15 @@ export default function NewPetScreen() {
         notes: form.notes,
         photoUri,
       });
+
+      if (openAssistant) {
+        // O pet já existe. O assistente abre com ele selecionado e, ao concluir, volta para Meus Pets.
+        newDeviceDraft.reset();
+        newDeviceDraft.set({ origin: 'meus-pets', petId: pet.id });
+        router.replace('/novo-dispositivo');
+        return;
+      }
+
       setStep(4);
     } catch (e) {
       setError(
@@ -434,7 +445,7 @@ export default function NewPetScreen() {
 
                 <Pressable
                   style={[styles.secondary, saving && styles.disabled]}
-                  onPress={register}
+                  onPress={() => register(false)}
                   disabled={saving}
                   accessibilityRole="button"
                   accessibilityState={{ busy: saving }}
@@ -456,8 +467,8 @@ export default function NewPetScreen() {
                 <Text style={styles.eyebrow}>Vínculo do dispositivo</Text>
                 <Text style={styles.title}>Tudo pronto para conectar</Text>
                 <Text style={styles.subtitle}>
-                  Você seguirá pelo assistente de conexão e voltará aqui quando
-                  terminar.
+                  Você seguirá pelo assistente de conexão e voltará para Meus
+                  Pets quando terminar.
                 </Text>
 
                 <View style={styles.tipCard}>
@@ -471,7 +482,7 @@ export default function NewPetScreen() {
 
                 <Pressable
                   style={[styles.primary, saving && styles.disabled]}
-                  onPress={register}
+                  onPress={() => register(true)}
                   disabled={saving}
                   accessibilityRole="button"
                   accessibilityState={{ busy: saving }}
@@ -485,7 +496,7 @@ export default function NewPetScreen() {
 
                 <Pressable
                   style={[styles.secondary, saving && styles.disabled]}
-                  onPress={register}
+                  onPress={() => register(false)}
                   disabled={saving}
                   accessibilityRole="button"
                 >

@@ -8,6 +8,7 @@ import { useAppTheme } from '@/hooks/useAppTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError, errorMessage } from '@/services/api';
 import { authService } from '@/services/authService';
+import { MIN_PASSWORD_LENGTH, validateName } from '@/utils/validators';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -32,10 +33,11 @@ function maskPhone(value: string) {
 
 function validate(v: { name: string; email: string; phone: string; password: string; confirm: string }): Errors {
   const e: Errors = {};
-  if (v.name.trim().length < 2) e.name = 'Informe seu nome.';
+  const nameError = validateName(v.name);
+  if (nameError) e.name = nameError;
   if (!/^\S+@\S+\.\S+$/.test(v.email.trim())) e.email = 'E-mail inválido.';
   if (v.phone && v.phone.replace(/\D/g, '').length < 10) e.phone = 'Telefone inválido.';
-  if (v.password.length < 6) e.password = 'A senha precisa ter ao menos 6 caracteres.';
+  if (v.password.length < MIN_PASSWORD_LENGTH) e.password = `A senha precisa ter ao menos ${MIN_PASSWORD_LENGTH} caracteres.`;
   if (v.confirm !== v.password) e.confirm = 'As senhas não conferem.';
   return e;
 }
@@ -137,7 +139,7 @@ export default function SignUpScreen() {
       <TextField
         label="Senha"
         icon="lock-closed-outline"
-        placeholder="Mínimo de 6 caracteres"
+        placeholder={`Mínimo de ${MIN_PASSWORD_LENGTH} caracteres`}
         isPassword
         autoCapitalize="none"
         value={password}

@@ -1,10 +1,10 @@
 import { DeviceFlowLayout } from '@/components/devices/DeviceFlowLayout';
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
-import { errorMessage } from '@/services/api';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { errorMessage } from '@/services/api';
 import { deviceService } from '@/services/deviceService';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,21 +14,33 @@ import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'reac
 
 const STEPS = ['Dispositivo encontrado', 'Rede identificada', 'Finalizando conexão'];
 
-/** Anel girando com o ícone de Wi-Fi no centro. */
-function ConnectingRing() {
+/** Anel girando com o ícone de Wi-Fi no centro. Com `failed`, para de girar e mostra o aviso de erro. */
+function ConnectingRing({ failed }: { failed: boolean }) {
   const spin = useRef(new Animated.Value(0)).current;
-  const { dark } = useAppTheme();
+  const { dark, bg } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
 
   useEffect(() => {
+    if (failed) return;
     const loop = Animated.loop(
       Animated.timing(spin, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true })
     );
     loop.start();
     return () => loop.stop();
-  }, [spin]);
+  }, [spin, failed]);
 
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+
+  if (failed) {
+    return (
+      <View style={styles.ringBox}>
+        <View style={[styles.ring, { borderColor: bg(colors.errorLight), borderTopColor: colors.error, borderRightColor: colors.error }]} />
+        <View style={[styles.ringInner, { backgroundColor: bg(colors.errorLight) }]}>
+          <Ionicons name="alert-circle-outline" size={46} color={colors.error} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.ringBox}>
@@ -47,8 +59,11 @@ export default function ConnectingScreen() {
   const draft = newDeviceDraft.get();
   const [done, setDone] = useState(0); // quantos itens do checklist já foram concluídos
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const finished = useRef(false);
+  // Guarda o dispositivo já vinculado: se a espera falhar, "tentar novamente" só espera de novo
+  const registered = useRef<{ petId: string; id: string } | null>(null);
 
   const goToDone = useCallback(() => {
     if (finished.current) return;
@@ -64,14 +79,35 @@ export default function ConnectingScreen() {
 
     (async () => {
       try {
-        await deviceService.connect(draft.type ?? 'colar', draft.ssid ?? '', draft.password);
-        if (!draft.petId || !draft.type) throw new Error('Escolha o pet e o tipo do dispositivo.');
-        await deviceService.register(draft.petId, draft.type, draft.deviceCode);
+        if (!registered.current) {
+          // Wi-Fi do aparelho (ainda simulado) e vínculo com o pet no back-end
+          await deviceService.connect(draft.type ?? 'colar', draft.ssid ?? '', draft.password);
+          if (!draft.petId || !draft.type) throw new Error('Escolha o pet e o tipo do dispositivo.');
+          const device = await deviceService.register(draft.petId, draft.type, draft.deviceCode);
+          registered.current = { petId: draft.petId, id: device.id };
+        }
+
+        // Espera o dispositivo ficar online (ele avisa o back-end quando liga)
+        const online = await deviceService.waitUntilOnline(registered.current.petId, registered.current.id, {
+          shouldStop: () => cancelled,
+        });
         if (cancelled) return;
+        if (!online) {
+          clearTimeout(t1);
+          clearTimeout(t2);
+          setNotice(
+            'O dispositivo foi vinculado, mas ainda não respondeu. Confira se ele está ligado. ',
+          );
+          return;
+        }
         setDone(3);
         t3 = setTimeout(goToDone, 800);
       } catch (e) {
         if (cancelled) return;
+        // Falhou: o checklist para e volta ao início (nada foi concluído)
+        clearTimeout(t1);
+        clearTimeout(t2);
+        setDone(0);
         setError(errorMessage(e, 'Não foi possível vincular o dispositivo. Tente novamente.'));
       }
     })();
@@ -82,19 +118,28 @@ export default function ConnectingScreen() {
 
   const retry = () => {
     setError(null);
+    setNotice(null);
     setDone(0);
     setAttempt((a) => a + 1);
   };
 
+  // Erro ou dispositivo sem resposta: a animação para e os textos deixam de dizer "conectando"
+  const failed = !!error || !!notice;
+  const kicker = error ? 'ALGO DEU ERRADO' : notice ? 'QUASE LÁ' : 'SÓ UM INSTANTE';
+  const title = error ? 'Não foi possível conectar' : notice ? 'Dispositivo sem resposta' : 'Conectando ao dispositivo...';
+  const subtitle = error
+    ? 'Confira os dados e tente novamente.'
+    : notice
+      ? 'O dispositivo foi vinculado, mas ainda não respondeu.'
+      : `Estamos configurando o acesso pela rede ${draft.ssid ?? 'Wi-Fi'}.`;
+
   return (
     <DeviceFlowLayout step={4} onBack={() => router.back()}>
       <View style={styles.center}>
-        <ConnectingRing />
-        <Text style={styles.kicker}>SÓ UM INSTANTE</Text>
-        <Text style={styles.title}>Conectando ao dispositivo...</Text>
-        <Text style={styles.subtitle}>
-          Estamos configurando o acesso pela rede {draft.ssid ?? 'Wi-Fi'}.
-        </Text>
+        <ConnectingRing failed={failed} />
+        <Text style={styles.kicker}>{kicker}</Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
 
       <View style={styles.checklist}>
@@ -112,6 +157,16 @@ export default function ConnectingScreen() {
           );
         })}
       </View>
+
+      {!!notice && (
+        <View style={styles.errorBox}>
+          <FeedbackBanner type="error" message={notice} />
+          <Button title="Tentar novamente" onPress={retry} />
+          <TouchableOpacity onPress={goToDone} style={styles.skip} hitSlop={8}>
+            <Text style={styles.skipText}>Continuar mesmo assim</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {!!error && (
         <View style={styles.errorBox}>

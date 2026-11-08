@@ -20,6 +20,7 @@ import { ui } from '@/constants/ui';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 import { authService, INVALID_CURRENT_PASSWORD } from '@/services/authService';
+import { MIN_PASSWORD_LENGTH } from '@/utils/validators';
 
 /* ============================================================
    VALIDAÇÃO
@@ -27,7 +28,7 @@ import { authService, INVALID_CURRENT_PASSWORD } from '@/services/authService';
 
 type FieldKey = 'current' | 'next' | 'confirm';
 
-const MIN_LENGTH = 8;
+const MIN_LENGTH = MIN_PASSWORD_LENGTH;
 
 function validate(values: Record<FieldKey, string>): Partial<Record<FieldKey, string>> {
   const errors: Partial<Record<FieldKey, string>> = {};
@@ -49,7 +50,7 @@ function validate(values: Record<FieldKey, string>): Partial<Record<FieldKey, st
 
 const FIELDS: { key: FieldKey; label: string; placeholder: string }[] = [
   { key: 'current', label: 'Senha atual', placeholder: 'Digite sua senha atual' },
-  { key: 'next', label: 'Nova senha', placeholder: 'Mínimo de 8 caracteres' },
+  { key: 'next', label: 'Nova senha', placeholder: `Mínimo de ${MIN_LENGTH} caracteres` },
   { key: 'confirm', label: 'Confirmar nova senha', placeholder: 'Repita a nova senha' },
 ];
 

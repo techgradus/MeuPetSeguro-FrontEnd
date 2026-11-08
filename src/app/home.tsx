@@ -4,26 +4,25 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PetAvatar from '@/components/PetAvatar';
+import { EmptyPetsNotice } from '@/components/pets/EmptyPetsNotice';
 import PhoneFrame from '@/components/PhoneFrame';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
-import { EmptyPetsNotice } from '@/components/pets/EmptyPetsNotice';
 import type { Pet } from '@/data/pets';
 import { useAlerts } from '@/hooks/useAlerts';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardPets } from '@/hooks/useDashboardPets';
-import { newPetDraft } from '@/services/newPetDraft';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { useLivePet } from '@/hooks/useLivePet';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
+import { newPetDraft } from '@/services/newPetDraft';
 
  
 
 
-// 7 barras; a 6ª é o pico do período (destacada no design)
-const activityBars = [22, 34, 12, 41, 29, 48, 38];
-const peakBarIndex = 5;
+// O mini gráfico (7 dias) e o selo de atividade vêm das leituras reais: ver useLivePet().
 
 /* UTILITÁRIOS */
 
@@ -188,16 +187,19 @@ export default function HomeScreen() {
 
   const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
 
-  const pet = pets.find((p) => p.id === selectedPetId) ?? pets[0];
+  const basePet = pets.find((p) => p.id === selectedPetId) ?? pets[0];
+
+  // Dados reais dos sensores (atividade, potes, insight da IA), atualizados sozinhos
+  const { pet, bars: activityBars, peakIndex: peakBarIndex, badge } = useLivePet(basePet);
 
   // Abre a tela de Atividade do pet que está selecionado
   function openActivity() {
-    router.push({ pathname: '/activity', params: { pet: pet.id } });
+    router.push({ pathname: '/activity', params: { pet: pet?.id } });
   }
 
   // Abre a tela de Alimentação já na aba escolhida
   function openFeeding(tab: 'food' | 'water') {
-    router.push({ pathname: '/alimentacao', params: { pet: pet.id, tab } });
+    router.push({ pathname: '/alimentacao', params: { pet: pet?.id, tab } });
   }
 
   function addFirstPet() {
@@ -340,7 +342,7 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.normalBadge}>
-                <Text style={styles.normalText}>Normal hoje</Text>
+                <Text style={styles.normalText}>{badge}</Text>
               </View>
             </View>
 

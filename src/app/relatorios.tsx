@@ -1,104 +1,27 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { EmptyPetsNotice } from '@/components/pets/EmptyPetsNotice';
 import PhoneFrame from '@/components/PhoneFrame';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts } from '@/constants/petTheme';
 import { ui } from '@/constants/ui';
-import { isPetId, PetId, pets } from '@/data/pets';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { useDashboardPets } from '@/hooks/useDashboardPets';
 import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
+import { usePetReport } from '@/hooks/usePetReport';
+import { newPetDraft } from '@/services/newPetDraft';
+import type { CardKind } from '@/utils/petReport';
 
-/* ============================================================
-   DADOS MOCK
-   Quando existir API, troque por dados reais do pet.
-============================================================ */
 
-type Bar = {
-  /** Altura relativa, de 0 a 100 */
-  value: number;
-  /** Barra laranja = abaixo do esperado */
-  attention?: boolean;
+const KIND_STYLE: Record<CardKind, { icon: keyof typeof Ionicons.glyphMap; color: string; soft: string }> = {
+  activity: { icon: 'pulse-outline', color: colors.primary, soft: ui.tealSoft },
+  feeding: { icon: 'restaurant-outline', color: '#E08E00', soft: '#FFE9CC' },
+  water: { icon: 'water-outline', color: '#3A94C9', soft: '#D6EEFB' },
 };
 
-type Insight = {
-  id: string;
-  kind: 'activity' | 'feeding';
-  title: string;
-  description: string;
-  /** Destaca a borda do card (ponto de atenção) */
-  attention?: boolean;
-  bars?: Bar[];
-  /** Texto do rodapé: link (activity) ou aviso "tudo certo" (feeding) */
-  footer: string;
-};
-
-type Report = {
-  score: number;
-  summary: string;
-  insights: Insight[];
-};
-
-const weekBars: Bar[] = [
-  { value: 100 },
-  { value: 87 },
-  { value: 48, attention: true },
-  { value: 52, attention: true },
-  { value: 83 },
-];
-
-const feedingInsight: Insight = {
-  id: 'feeding',
-  kind: 'feeding',
-  title: 'Alimentação consistente',
-  description:
-    'Os horários e porções permanecem dentro do padrão saudável das últimas quatro semanas.',
-  footer: 'Nenhuma ação necessária',
-};
-
-const reports: Record<PetId, Report> = {
-  Rex: {
-    score: 82,
-    summary: 'Bom, com um ponto de atenção',
-    insights: [
-      {
-        id: 'activity',
-        kind: 'activity',
-        title: 'Atividade 40% menor que o normal',
-        description:
-          'Rex se movimentou menos entre terça e quinta, especialmente no período da tarde.',
-        attention: true,
-        bars: weekBars,
-        footer: 'Ver análise completa',
-      },
-      feedingInsight,
-    ],
-  },
-  Mia: {
-    score: 82,
-    summary: 'Bom, com um ponto de atenção',
-    insights: [
-      {
-        id: 'activity',
-        kind: 'activity',
-        title: 'Atividade matinal acima da média',
-        description: 'Mia explorou mais a casa durante as manhãs desta semana.',
-        attention: true,
-        bars: weekBars,
-        footer: 'Ver análise completa',
-      },
-      feedingInsight,
-    ],
-  },
-};
-
-/* ============================================================
-   ANEL DE PROGRESSO
-   Feito só com Views (sem react-native-svg): duas metades de
-   círculo giradas, uma para cada lado do anel.
-============================================================ */
 
 function ScoreRing({
   percent,
@@ -205,10 +128,11 @@ export default function ReportsScreen() {
   const { bg } = useAppTheme();
   const { pet: petParam } = useLocalSearchParams<{ pet?: string }>();
 
-  // Recebe da Home: /relatorios?pet=Mia. Sem parâmetro, usa o Rex.
-  const petId: PetId = isPetId(petParam) ? petParam : 'Rex';
-  const pet = pets[petId];
-  const report = reports[petId];
+  const { pets, loading: petsLoading, error: petsError, reload } = useDashboardPets();
+  const pet = pets.find((p) => p.id === petParam) ?? pets[0];
+
+  const { report, loading, error } = usePetReport(pet);
+  const [showInfo, setShowInfo] = useState(false);
 
   const layout = useLayout();
   const { s } = layout;
@@ -226,16 +150,33 @@ export default function ReportsScreen() {
     ],
   );
 
-  function openActivity() {
-    router.push({ pathname: '/activity', params: { pet: petId } });
+  function addFirstPet() {
+    newPetDraft.reset();
+    router.push('/novo-pet');
   }
 
-  function openFeeding() {
-    router.push({
-      pathname: '/alimentacao',
-      params: { pet: petId, tab: 'food' },
-    });
+  if (!pet) {
+    return (
+      <PhoneFrame active="reports">
+        <EmptyPetsNotice loading={petsLoading} error={petsError} onAdd={addFirstPet} onRetry={reload} />
+      </PhoneFrame>
+    );
   }
+
+  function openActivity() {
+    router.push({ pathname: '/activity', params: { pet: pet!.id } });
+  }
+
+  function openFeeding(tab: 'food' | 'water' = 'food') {
+    router.push({ pathname: '/alimentacao', params: { pet: pet!.id, tab } });
+  }
+
+  function openAction(action: 'activity' | 'food' | 'water') {
+    if (action === 'activity') openActivity();
+    else openFeeding(action);
+  }
+
+  const score = report.score;
 
   return (
     <PhoneFrame active="reports">
@@ -260,12 +201,27 @@ export default function ReportsScreen() {
               style={styles.sparkButton}
               accessibilityRole="button"
               accessibilityLabel="Sobre os insights"
-              // TODO: abrir explicação sobre os insights
-              onPress={() => {}}
+              accessibilityState={{ expanded: showInfo }}
+              onPress={() => setShowInfo((v) => !v)}
             >
               <Ionicons name="sparkles-outline" size={s(22)} color="#FFFFFF" />
             </Pressable>
           </View>
+
+          {/* EXPLICAÇÃO (botão de brilho) */}
+          {showInfo && (
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Como calculamos</Text>
+              <Text style={styles.infoText}>
+                A nota de bem-estar começa em 100 e perde pontos quando a IA aponta algo fora do padrão, quando a
+                atividade cai em relação à semana anterior ou quando um pote está quase vazio.
+              </Text>
+              <Text style={styles.infoText}>
+                Os cards “Gerado por IA” vêm do modelo que aprende a rotina do pet. Os cards “Análise da semana”
+                são calculados pelo app com as leituras dos últimos 7 dias.
+              </Text>
+            </View>
+          )}
 
           {/* BEM-ESTAR */}
           <View style={styles.heroCard}>
@@ -273,7 +229,7 @@ export default function ReportsScreen() {
               <Text style={styles.heroLabel}>Bem-estar esta semana</Text>
 
               <Text style={styles.heroScore}>
-                {report.score}
+                {score ?? '--'}
                 <Text style={styles.heroMax}> / 100</Text>
               </Text>
 
@@ -281,13 +237,13 @@ export default function ReportsScreen() {
             </View>
 
             <ScoreRing
-              percent={report.score}
+              percent={score ?? 0}
               size={s(84)}
               thickness={s(9)}
               color="#FFFFFF"
               trackColor="rgba(255,255,255,0.28)"
             >
-              <Text style={styles.ringText}>{report.score}%</Text>
+              <Text style={styles.ringText}>{score === null ? '--' : `${score}%`}</Text>
             </ScoreRing>
           </View>
 
@@ -315,7 +271,7 @@ export default function ReportsScreen() {
 
             <Pressable
               style={styles.shortcut}
-              onPress={openFeeding}
+              onPress={() => openFeeding('food')}
               accessibilityRole="button"
               accessibilityLabel="Alimentação. Ver consumo"
             >
@@ -344,51 +300,73 @@ export default function ReportsScreen() {
           </Text>
           <Text style={styles.sectionTitle}>O que notamos</Text>
 
-          {report.insights.map((insight) => {
-            const isActivity = insight.kind === 'activity';
+          {loading && report.cards.length === 0 && (
+            <View style={styles.centerBox}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          )}
+
+          {!loading && error && report.cards.length === 0 && (
+            <Text style={styles.stateText}>{error}</Text>
+          )}
+
+          {!loading && !error && report.cards.length === 0 && (
+            <View style={styles.insightCard}>
+              <Text style={styles.insightTitle}>Ainda não há análises</Text>
+              <Text style={styles.insightText}>
+                Vincule a coleira e os potes de {pet.name}. Quando eles começarem a enviar leituras, as análises
+                aparecem aqui.
+              </Text>
+            </View>
+          )}
+
+          {report.cards.map((card) => {
+            const kind = KIND_STYLE[card.kind];
+            const isAi = card.source === 'ai';
 
             return (
               <View
-                key={insight.id}
+                key={card.id}
                 style={[
                   styles.insightCard,
-                  insight.attention
+                  card.attention
                     ? styles.insightCardAttention
                     : styles.insightCardNormal,
                 ]}
               >
                 <View style={styles.insightTop}>
-                  <View style={styles.aiBadge}>
-                    <MaterialCommunityIcons
-                      name="robot-outline"
-                      size={s(13)}
-                      color="#E8604F"
-                    />
-                    <Text style={styles.aiBadgeText}>GERADO POR IA</Text>
-                  </View>
+                  {isAi ? (
+                    <View style={styles.aiBadge}>
+                      <MaterialCommunityIcons
+                        name="robot-outline"
+                        size={s(13)}
+                        color="#E8604F"
+                      />
+                      <Text style={styles.aiBadgeText}>GERADO POR IA</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.weeklyBadge}>
+                      <Ionicons name="calendar-outline" size={s(13)} color={colors.primary} />
+                      <Text style={styles.weeklyBadgeText}>ANÁLISE DA SEMANA</Text>
+                    </View>
+                  )}
 
                   <View
                     style={[
                       styles.insightIcon,
-                      {
-                        backgroundColor: bg(isActivity ? ui.tealSoft : '#FFE9CC'),
-                      },
+                      { backgroundColor: bg(kind.soft) },
                     ]}
                   >
-                    <Ionicons
-                      name={isActivity ? 'pulse-outline' : 'restaurant-outline'}
-                      size={s(20)}
-                      color={isActivity ? colors.primary : '#E08E00'}
-                    />
+                    <Ionicons name={kind.icon} size={s(20)} color={kind.color} />
                   </View>
                 </View>
 
-                <Text style={styles.insightTitle}>{insight.title}</Text>
-                <Text style={styles.insightText}>{insight.description}</Text>
+                <Text style={styles.insightTitle}>{card.title}</Text>
+                <Text style={styles.insightText}>{card.description}</Text>
 
-                {insight.bars && (
+                {card.bars && (
                   <View style={styles.miniChart} accessibilityElementsHidden>
-                    {insight.bars.map((bar, index) => (
+                    {card.bars.map((bar, index) => (
                       <View
                         key={index}
                         style={[
@@ -401,13 +379,13 @@ export default function ReportsScreen() {
                   </View>
                 )}
 
-                {isActivity ? (
+                {card.action ? (
                   <Pressable
                     style={styles.linkRow}
-                    onPress={openActivity}
+                    onPress={() => openAction(card.action!)}
                     accessibilityRole="link"
                   >
-                    <Text style={styles.linkText}>{insight.footer}</Text>
+                    <Text style={styles.linkText}>{card.footer}</Text>
                     <Ionicons
                       name="chevron-forward"
                       size={s(18)}
@@ -417,11 +395,11 @@ export default function ReportsScreen() {
                 ) : (
                   <View style={styles.okRow}>
                     <Ionicons
-                      name="shield-checkmark-outline"
+                      name={card.attention ? 'information-circle-outline' : 'shield-checkmark-outline'}
                       size={s(16)}
-                      color={colors.primary}
+                      color={card.attention ? '#6F8481' : colors.primary}
                     />
-                    <Text style={styles.okText}>{insight.footer}</Text>
+                    <Text style={card.attention ? styles.noteText : styles.okText}>{card.footer}</Text>
                   </View>
                 )}
               </View>
@@ -705,6 +683,66 @@ function makeStyles({ dark, s, isWeb, insetTop, navHeight }: Layout) {
       fontFamily: fonts.extrabold,
       fontSize: s(11),
       color: colors.primary,
+    },
+
+    weeklyBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: ui.tealSoft,
+      borderRadius: s(8),
+      paddingHorizontal: s(8),
+      paddingVertical: s(4),
+      gap: s(5),
+    },
+
+    weeklyBadgeText: {
+      fontFamily: fonts.extrabold,
+      fontSize: s(9),
+      letterSpacing: 0.4,
+      color: colors.primary,
+    },
+
+    noteText: {
+      flex: 1,
+      fontFamily: fonts.medium,
+      fontSize: s(11),
+      color: '#6F8481',
+    },
+
+    infoCard: {
+      marginTop: s(14),
+      backgroundColor: ui.card,
+      borderRadius: s(14),
+      borderWidth: 1,
+      borderColor: border,
+      padding: s(14),
+    },
+
+    infoTitle: {
+      fontFamily: fonts.bold,
+      fontSize: s(14),
+      color: colors.text,
+    },
+
+    infoText: {
+      fontFamily: fonts.medium,
+      fontSize: s(12),
+      lineHeight: s(18),
+      color: '#5C6F6D',
+      marginTop: s(6),
+    },
+
+    centerBox: {
+      paddingVertical: s(28),
+      alignItems: 'center',
+    },
+
+    stateText: {
+      fontFamily: fonts.medium,
+      fontSize: s(13),
+      color: '#6F8481',
+      textAlign: 'center',
+      paddingVertical: s(20),
     },
 
     /* AVISO */

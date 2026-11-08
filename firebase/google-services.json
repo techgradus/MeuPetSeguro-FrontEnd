@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "608627444315",
+    "project_id": "meu-pet-seguro-e4da9",
+    "storage_bucket": "meu-pet-seguro-e4da9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:608627444315:android:b15a883a9eec540cf50d7e",
+        "android_client_info": {
+          "package_name": "com.meupetseguro.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8YC07RHiiItweTVoGD5KOXjbSGjJFsUk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
