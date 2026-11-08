@@ -2,7 +2,7 @@ import { DeviceFlowLayout, DeviceStepHeader } from '@/components/devices/DeviceF
 import { Button } from '@/components/ui/Button';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { themed } from '@/constants/darkTheme';
-import { getDeviceType } from '@/constants/deviceTypes';
+import { getSetupOption } from '@/constants/deviceSetup';
 import { colors, fonts, radius, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
@@ -15,7 +15,7 @@ export default function DeviceDoneScreen() {
   const router = useRouter();
   const { dark, bg } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
-  const info = getDeviceType(newDeviceDraft.get().type ?? 'colar');
+  const info = getSetupOption(newDeviceDraft.get().kind ?? 'colar');
 
   const finish = () => {
     const backTo = newDeviceDraft.get().origin === 'config' ? '/config' : '/meus-pets';
@@ -25,7 +25,7 @@ export default function DeviceDoneScreen() {
     router.replace(backTo);
   };
 
-  // Recomeça o assistente para o mesmo pet (um pet pode ter colar, pote de comida e pote de água)
+  // Recomeça o assistente para o mesmo pet (um pet pode ter um colar e uma estação de potes)
   const addAnother = () => {
     const { petId, origin } = newDeviceDraft.get();
     newDeviceDraft.reset();

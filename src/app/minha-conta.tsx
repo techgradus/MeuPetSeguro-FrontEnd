@@ -357,7 +357,6 @@ export default function AccountScreen() {
               style={styles.passwordCard}
               accessibilityRole="button"
               accessibilityLabel="Alterar senha. Atualize sua senha de acesso"
-              // TODO: abrir a tela de alterar senha
               onPress={() => router.push('/alterar-senha')}
             >
               <View style={styles.passwordIcon}>

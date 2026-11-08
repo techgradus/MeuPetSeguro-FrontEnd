@@ -1,4 +1,5 @@
-import { DeviceType } from '@/constants/deviceTypes';
+import type { SetupKind } from '@/constants/deviceSetup';
+import type { PetDevice } from '@/types/device';
 
 /**
  * Rascunho do assistente "Novo dispositivo", compartilhado entre as 5 etapas.
@@ -8,15 +9,18 @@ export type DeviceFlowOrigin = 'meus-pets' | 'config';
 
 export type NewDeviceDraft = {
   petId?: string;
-  type?: DeviceType;
+  kind?: SetupKind;
   deviceCode: string;
-  ssid?: string;
-  password: string;
+  /**
+   * Preenchido quando o equipamento já foi vinculado ao pet (etapa "Preparar").
+   * Evita vincular de novo se a pessoa voltar e avançar com o mesmo código.
+   */
+  registered?: { petId: string; kind: SetupKind; code: string; devices: PetDevice[] };
   /** Tela que abriu o assistente (define a aba ativa e para onde voltar ao concluir). */
   origin?: DeviceFlowOrigin;
 };
 
-const EMPTY: NewDeviceDraft = { password: '', deviceCode: '' };
+const EMPTY: NewDeviceDraft = { deviceCode: '' };
 
 let draft: NewDeviceDraft = { ...EMPTY };
 

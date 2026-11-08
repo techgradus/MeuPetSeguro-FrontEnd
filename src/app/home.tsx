@@ -18,7 +18,7 @@ import { Layout, MAX_CONTENT_WIDTH, useLayout } from '@/hooks/useLayout';
 import { useLivePet } from '@/hooks/useLivePet';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { newPetDraft } from '@/services/newPetDraft';
-
+import { unitsSummary } from '@/utils/deviceGroups';
  
 
 
@@ -167,7 +167,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { pets, devices, loading, error, reload } = useDashboardPets();
   const { unreadCount: unreadAlerts } = useAlerts();
-  const connectedDevices = devices.filter((d) => d.online).length;
+  const deviceUnits = unitsSummary(devices);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const layout = useLayout();
   const { s } = layout;
@@ -425,9 +425,7 @@ export default function HomeScreen() {
             <View style={styles.deviceContent}>
               <Text style={styles.deviceTitle}>Dispositivos</Text>
               <Text style={styles.deviceSubtitle}>
-                {devices.length === 0
-                  ? 'Nenhum dispositivo vinculado'
-                  : `${connectedDevices} de ${devices.length} conectados`}
+                {deviceUnits.total === 0 ? 'Nenhum dispositivo vinculado' : `${deviceUnits.online} de ${deviceUnits.total} conectados`}
               </Text>
             </View>
           </Pressable>
