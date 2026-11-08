@@ -82,8 +82,7 @@ export default function ConnectingScreen() {
         if (cancelled) return;
         if (!online) {
           setNotice(
-            'O dispositivo foi vinculado, mas ainda não respondeu. Confira se ele está ligado. ' +
-              '(No modo de teste, rode o simulador: npm run mqtt:simulate.)',
+            'O dispositivo foi vinculado, mas ainda não respondeu. Confira se ele está ligado. ',
           );
           return;
         }
