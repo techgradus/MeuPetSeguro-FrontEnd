@@ -17,7 +17,7 @@ export default function DeviceTypeScreen() {
   const router = useRouter();
   const { dark, bg } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
-  const [type, setType] = useState<DeviceType | undefined>(newDeviceDraft.get().type);
+  const [pickedType, setPickedType] = useState<DeviceType | undefined>(newDeviceDraft.get().type);
 
   const { pets, loading } = usePets();
   const [petId, setPetId] = useState<string | undefined>(newDeviceDraft.get().petId);
@@ -25,8 +25,12 @@ export default function DeviceTypeScreen() {
   const selectedPet = pets.find((p) => p.id === selectedPetId);
   const noPets = !loading && pets.length === 0;
 
+  const linkedTypes = useMemo(() => new Set(selectedPet?.devices.map((d) => d.type) ?? []), [selectedPet]);
+  const allLinked = !!selectedPet && DEVICE_TYPES.every((item) => linkedTypes.has(item.type));
+  const type = pickedType && !linkedTypes.has(pickedType) ? pickedType : undefined;
+
   const next = () => {
-    if (!type || !selectedPetId) return;
+    if (!type || !selectedPetId || linkedTypes.has(type)) return;
     newDeviceDraft.set({ type, petId: selectedPetId });
     router.push('/novo-dispositivo/preparar');
   };
@@ -69,29 +73,50 @@ export default function DeviceTypeScreen() {
       <View style={styles.list}>
         {DEVICE_TYPES.map((item) => {
           const selected = item.type === type;
+          const linked = linkedTypes.has(item.type);
           return (
             <TouchableOpacity
               key={item.type}
               activeOpacity={0.85}
-              onPress={() => setType(item.type)}
+              disabled={linked}
+              onPress={() => setPickedType(item.type)}
               accessibilityRole="radio"
-              accessibilityState={{ selected }}
-              style={[styles.card, selected && styles.cardSelected]}
+              accessibilityState={{ selected, disabled: linked }}
+              style={[styles.card, selected && styles.cardSelected, linked && styles.cardLinked]}
             >
               <View style={[styles.icon, { backgroundColor: bg(item.softColor) }]}>
                 <Ionicons name={item.icon} size={20} color={item.color} />
               </View>
               <View style={styles.texts}>
                 <Text style={styles.label}>{item.label}</Text>
-                <Text style={styles.description}>{item.description}</Text>
+                <Text style={styles.description}>
+                  {linked ? `${selectedPet?.name ?? 'O pet'} já tem este dispositivo` : item.description}
+                </Text>
               </View>
-              <View style={[styles.radio, selected && styles.radioSelected]}>
-                {selected && <Ionicons name="checkmark" size={16} color="#fff" />}
-              </View>
+              {linked ? (
+                <View style={styles.linkedBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+                  <Text style={styles.linkedBadgeText}>Conectado</Text>
+                </View>
+              ) : (
+                <View style={[styles.radio, selected && styles.radioSelected]}>
+                  {selected && <Ionicons name="checkmark" size={16} color="#fff" />}
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
       </View>
+
+      {allLinked ? (
+        <Text style={styles.limitHint}>
+          Todos os dispositivos de {selectedPet?.name} já estão conectados. Para trocar um, remova o atual em Meus Pets.
+        </Text>
+      ) : (
+        linkedTypes.size > 0 && (
+          <Text style={styles.limitHint}>Cada pet pode ter um dispositivo de cada tipo.</Text>
+        )
+      )}
 
       <Button title="Continuar" onPress={next} disabled={!type || !selectedPetId} />
     </DeviceFlowLayout>
@@ -107,6 +132,10 @@ const makeStyles = (dark: boolean) => StyleSheet.create(themed({
     borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border,
   },
   cardSelected: { borderColor: colors.primary },
+  cardLinked: { opacity: 0.6 },
+  linkedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  linkedBadgeText: { fontFamily: fonts.bold, fontSize: 11, color: colors.primary },
+  limitHint: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, marginBottom: spacing.lg, marginTop: -4 },
   icon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   texts: { flex: 1 },
   label: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },

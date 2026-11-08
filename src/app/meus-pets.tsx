@@ -9,7 +9,7 @@ import { BottomTabBar } from '@/components/ui/BottomTabBar';
 import { Button } from '@/components/ui/Button';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
-import { getDeviceType } from '@/constants/deviceTypes';
+import { DEVICE_TYPES, getDeviceType } from '@/constants/deviceTypes';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
@@ -183,6 +183,8 @@ export default function MeusPetsScreen() {
       : devices.length === 1
         ? getDeviceType(devices[0].type).label
         : `${devices.length} dispositivos`;
+  // Cada pet tem no máximo um dispositivo de cada tipo; com todos conectados não há o que adicionar
+  const allDevicesLinked = DEVICE_TYPES.every((item) => devices.some((d) => d.type === item.type));
   const deviceBadge = devices.length === 0 ? 'Não vinculado' : devices.some((d) => d.online) ? 'Online' : 'Offline';
   return (
     <ScreenContainer
@@ -255,10 +257,16 @@ export default function MeusPetsScreen() {
         icon="wifi"
         caption={`Dispositivos ${selected.species === 'Gato' ? 'da' : 'do'} ${selected.name}`}
         title={deviceTitle}
-        subtitle={devices.length > 0 ? 'Toque para adicionar outro' : 'Toque para conectar o primeiro'}
+        subtitle={
+          allDevicesLinked
+            ? 'Coleira e potes conectados'
+            : devices.length > 0
+              ? 'Toque para adicionar outro'
+              : 'Toque para conectar o primeiro'
+        }
         badge={deviceBadge}
         badgeOk={devices.some((d) => d.online)}
-        onPress={addDevice}
+        onPress={allDevicesLinked ? undefined : addDevice}
       />
 
       <PetDeviceList devices={devices} onRemove={removeDevice} />
