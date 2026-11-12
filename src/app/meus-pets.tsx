@@ -5,8 +5,9 @@ import { LabeledField } from '@/components/pets/LabeledField';
 import { PetAvatar } from '@/components/pets/PetAvatar';
 import { PetSelector } from '@/components/pets/PetSelector';
 import { SelectField } from '@/components/pets/SelectField';
-import { BottomTabBar } from '@/components/ui/BottomTabBar';
+import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/Button';
+import { DangerButton } from '@/components/ui/DangerButton';
 import { FeedbackBanner } from '@/components/ui/FeedbackBanner';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { DEVICE_TYPES } from '@/constants/deviceTypes';
@@ -16,7 +17,7 @@ import { useAppTheme } from '@/hooks/useAppTheme';
 import { usePets } from '@/hooks/usePets';
 import { useVaccineSummary } from '@/hooks/useVaccineSummary';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useTabNavigation } from '@/hooks/useTabNavigation';
+import { useLayout } from '@/hooks/useLayout';
 import { deviceService } from '@/services/deviceService';
 import { errorMessage } from '@/services/api';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
@@ -55,7 +56,7 @@ const toForm = (
 export default function MeusPetsScreen() {
   const router = useRouter();
   const { ms } = useResponsive();
-  const goToTab = useTabNavigation();
+  const { navHeight } = useLayout();
   const { pets, loading, error, reload } = usePets();
   const { dark } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
@@ -65,6 +66,7 @@ export default function MeusPetsScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const idsKey = pets.map((p) => p.id).join(',');
   useEffect(() => {
@@ -151,6 +153,29 @@ export default function MeusPetsScreen() {
     });
   };
 
+  const removePet = () => {
+    if (!selected || removing) return;
+    confirmAction({
+      title: 'Remover pet',
+      message:
+        `Remover ${selected.name}? Isso apaga também as vacinas, os alertas, o histórico de leituras ` +
+        'e desvincula os dispositivos. Não dá para desfazer.',
+      confirmLabel: 'Remover',
+      onConfirm: async () => {
+        setRemoving(true);
+        try {
+          await petService.remove(selected.id);
+        } catch (e) {
+          notify('Não foi possível remover o pet', errorMessage(e, 'Tente novamente em instantes.'));
+        } finally {
+          // Recarrega a lista: se o pet saiu, o perfil selecionado passa para o primeiro que sobrou
+          await reload();
+          setRemoving(false);
+        }
+      },
+    });
+  };
+
   const addNewPet = () => {
     newPetDraft.reset();
     router.push('/novo-pet');
@@ -167,7 +192,7 @@ export default function MeusPetsScreen() {
     return (
       <ScreenContainer
         edges={['top', 'left', 'right']}
-        footer={<BottomTabBar active="meus-pets" onPress={goToTab} />}
+        footer={<BottomNav active="pet" />}
       >
         <EmptyPetsNotice
           loading={loading || pets.length > 0}
@@ -175,6 +200,7 @@ export default function MeusPetsScreen() {
           onAdd={addNewPet}
           onRetry={reload}
         />
+        <View style={{ height: navHeight }} />
       </ScreenContainer>
     );
   }
@@ -194,7 +220,7 @@ export default function MeusPetsScreen() {
   return (
     <ScreenContainer
       edges={['top', 'left', 'right']}
-      footer={<BottomTabBar active="meus-pets" onPress={goToTab} />}
+      footer={<BottomNav active="pet" />}
     >
       <View style={styles.headerRow}>
         <View>
@@ -274,11 +300,16 @@ export default function MeusPetsScreen() {
       <PetDeviceList devices={devices} onRemove={removeDevice} />
 
       <View style={styles.saveBox}>
-        {/* O aviso fica junto do botão: quem rolou até o fim da tela vê o resultado sem subir */}
         {saved && <FeedbackBanner message={`Dados de ${form.name.trim()} salvos com sucesso.`} />}
         {!!saveError && <FeedbackBanner type="error" message={saveError} />}
         <Button title="Salvar alterações" onPress={handleSave} loading={saving} />
       </View>
+
+      <View style={styles.dangerBox}>
+        <DangerButton title={`Remover ${selected.name}`} onPress={removePet} loading={removing} />
+      </View>
+
+      <View style={{ height: navHeight }} />
     </ScreenContainer>
   );
 }
@@ -296,4 +327,5 @@ const makeStyles = (dark: boolean) => StyleSheet.create(themed({
   avatarBox: { alignItems: 'center', marginVertical: spacing.md },
   row: { flexDirection: 'row', gap: 12 },
   saveBox: { marginTop: spacing.sm, marginBottom: spacing.md },
+  dangerBox: { marginBottom: spacing.md },
 }, dark));

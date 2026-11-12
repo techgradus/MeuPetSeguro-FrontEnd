@@ -1,8 +1,8 @@
-import { BottomTabBar } from '@/components/ui/BottomTabBar';
+import BottomNav from '@/components/BottomNav';
 import { themed } from '@/constants/darkTheme';
 import { colors, fonts, radius, shadow, spacing } from '@/constants/petTheme';
 import { useAppTheme } from '@/hooks/useAppTheme';
-import { useTabNavigation } from '@/hooks/useTabNavigation';
+import { useLayout } from '@/hooks/useLayout';
 import { newDeviceDraft } from '@/services/newDeviceDraft';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
@@ -20,10 +20,10 @@ type Props = { step: 1 | 2 | 3 | 4 | 5; onBack: () => void; children: ReactNode 
 
 /** Estrutura das 5 etapas de "Novo dispositivo": voltar, título, progresso, conteúdo e barra inferior. */
 export function DeviceFlowLayout({ step, onBack, children }: Props) {
-  const goToTab = useTabNavigation();
+  const { navHeight } = useLayout();
   const { dark, tx } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
-  const activeTab = newDeviceDraft.get().origin === 'config' ? 'config' : 'meus-pets';
+  const activeTab = newDeviceDraft.get().origin === 'config' ? 'settings' : 'pet';
   const simulated = newDeviceDraft.get().mode === 'simulado';
   const totalSteps = simulated ? SIMULATED_STEPS : TOTAL_STEPS;
   const shownStep = simulated && step >= 4 ? step - 2 : step;
@@ -33,7 +33,7 @@ export function DeviceFlowLayout({ step, onBack, children }: Props) {
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: spacing.lg + navHeight }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -60,7 +60,7 @@ export function DeviceFlowLayout({ step, onBack, children }: Props) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <BottomTabBar active={activeTab} onPress={goToTab} />
+      <BottomNav active={activeTab} />
     </SafeAreaView>
   );
 }
