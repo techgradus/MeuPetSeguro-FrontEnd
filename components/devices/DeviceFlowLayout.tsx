@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const TOTAL_STEPS = 5;
+const SIMULATED_STEPS = 3;
 const MAX_WIDTH = 460;
 
 type Props = { step: 1 | 2 | 3 | 4 | 5; onBack: () => void; children: ReactNode };
@@ -23,6 +24,9 @@ export function DeviceFlowLayout({ step, onBack, children }: Props) {
   const { dark, tx } = useAppTheme();
   const styles = useMemo(() => makeStyles(dark), [dark]);
   const activeTab = newDeviceDraft.get().origin === 'config' ? 'config' : 'meus-pets';
+  const simulated = newDeviceDraft.get().mode === 'simulado';
+  const totalSteps = simulated ? SIMULATED_STEPS : TOTAL_STEPS;
+  const shownStep = simulated && step >= 4 ? step - 2 : step;
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
@@ -44,11 +48,11 @@ export function DeviceFlowLayout({ step, onBack, children }: Props) {
 
             <View style={styles.progressRow}>
               <View style={styles.bars}>
-                {Array.from({ length: TOTAL_STEPS }, (_, i) => (
-                  <View key={i} style={[styles.bar, i < step && styles.barDone]} />
+                {Array.from({ length: totalSteps }, (_, i) => (
+                  <View key={i} style={[styles.bar, i < shownStep && styles.barDone]} />
                 ))}
               </View>
-              <Text style={styles.stepText}>ETAPA {step} DE {TOTAL_STEPS}</Text>
+              <Text style={styles.stepText}>ETAPA {shownStep} DE {totalSteps}</Text>
             </View>
 
             {children}

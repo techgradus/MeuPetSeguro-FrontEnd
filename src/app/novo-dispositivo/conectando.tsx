@@ -88,8 +88,10 @@ export default function ConnectingScreen() {
 
         if (!online) {
           setNotice(
-            'O dispositivo foi vinculado, mas ainda não apareceu online. Confira se ele está ligado e se o Wi-Fi ' +
-              'foi salvo na página de configuração. (No modo de teste, rode o simulador: npm run mqtt:simulate.)',
+            registered.mode === 'simulado'
+              ? 'O dispositivo simulado foi criado, mas o simulador não o colocou online. '
+              : 'O dispositivo foi vinculado, mas ainda não apareceu online. Confira se ele está ligado e se o Wi-Fi ' +
+                  'foi salvo na página de configuração.',
           );
           return;
         }
@@ -122,7 +124,9 @@ export default function ConnectingScreen() {
     ? 'Confira sua conexão com a internet e tente novamente.'
     : notice
       ? 'O dispositivo foi vinculado, mas ainda não respondeu.'
-      : 'Aguardando o dispositivo entrar no Wi-Fi e avisar o servidor. Pode levar até 1 minuto.';
+      : newDeviceDraft.get().mode === 'simulado'
+        ? 'Aguardando o simulador colocar o dispositivo online. Pode levar alguns segundos.'
+        : 'Aguardando o dispositivo entrar no Wi-Fi e avisar o servidor. Pode levar até 1 minuto.';
 
   return (
     <DeviceFlowLayout step={4} onBack={() => router.back()}>
@@ -154,7 +158,9 @@ export default function ConnectingScreen() {
           <FeedbackBanner type="error" message={notice} />
           <Button title="Tentar novamente" onPress={retry} />
           <TouchableOpacity onPress={() => router.back()} style={styles.skip} hitSlop={8}>
-            <Text style={styles.skipText}>Rever as instruções do Wi-Fi</Text>
+            <Text style={styles.skipText}>
+              {newDeviceDraft.get().mode === 'simulado' ? 'Voltar' : 'Rever as instruções do Wi-Fi'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={goToDone} style={styles.skip} hitSlop={8}>
             <Text style={styles.skipText}>Continuar mesmo assim</Text>

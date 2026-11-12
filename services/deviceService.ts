@@ -1,4 +1,4 @@
-import type { SetupKind } from '@/constants/deviceSetup';
+import type { SetupKind, SetupMode } from '@/constants/deviceSetup';
 import { DeviceType } from '@/constants/deviceTypes';
 import { api } from '@/services/api';
 import type { PetDevice } from '@/types/device';
@@ -14,6 +14,7 @@ export type ApiDevice = {
   id: string;
   type: 'COLLAR' | 'FOOD_BOWL' | 'WATER_BOWL';
   deviceCode: string;
+  source?: 'REAL' | 'SIMULATED';
   status: 'ONLINE' | 'OFFLINE';
   batteryLevel: number | null;
   lastSyncAt: string | null;
@@ -25,6 +26,11 @@ const TO_API: Record<DeviceType, ApiDevice['type']> = {
   colar: 'COLLAR',
   comida: 'FOOD_BOWL',
   agua: 'WATER_BOWL',
+};
+
+const TO_SOURCE: Record<SetupMode, 'REAL' | 'SIMULATED'> = {
+  real: 'REAL',
+  simulado: 'SIMULATED',
 };
 
 const FROM_API: Record<ApiDevice['type'], DeviceType> = {
@@ -41,6 +47,7 @@ export function deviceFromApi(d: ApiDevice): PetDevice {
     online: d.status === 'ONLINE',
     battery: d.batteryLevel,
     lastSyncAt: d.lastSyncAt,
+    simulated: d.source === 'SIMULATED',
   };
 }
 
@@ -48,10 +55,15 @@ const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 
 export const deviceService = {
   /** Vincula um dispositivo avulso (ex.: colar) ao pet. */
-  async register(petId: string, type: DeviceType, deviceCode: string): Promise<PetDevice> {
+  async register(
+    petId: string,
+    type: DeviceType,
+    deviceCode: string,
+    mode: SetupMode = 'real',
+  ): Promise<PetDevice> {
     const device = await api<ApiDevice>(`/pets/${petId}/devices`, {
       method: 'POST',
-      body: { type: TO_API[type], deviceCode: deviceCode.trim() },
+      body: { type: TO_API[type], deviceCode: deviceCode.trim(), source: TO_SOURCE[mode] },
       auth: true,
     });
     return deviceFromApi(device);
@@ -61,12 +73,17 @@ export const deviceService = {
    * Vincula o equipamento escolhido no assistente. A estação de potes vira dois dispositivos
    * (comida e água) criados juntos no servidor: ou entram os dois ou nenhum.
    */
-  async registerSetup(petId: string, kind: SetupKind, code: string): Promise<PetDevice[]> {
-    if (kind === 'colar') return [await deviceService.register(petId, 'colar', code)];
+  async registerSetup(
+    petId: string,
+    kind: SetupKind,
+    code: string,
+    mode: SetupMode = 'real',
+  ): Promise<PetDevice[]> {
+    if (kind === 'colar') return [await deviceService.register(petId, 'colar', code, mode)];
 
     const station = await api<ApiStation>(`/pets/${petId}/devices/station`, {
       method: 'POST',
-      body: { stationCode: code.trim() },
+      body: { stationCode: code.trim(), source: TO_SOURCE[mode] },
       auth: true,
     });
     return station.devices.map(deviceFromApi);
@@ -74,8 +91,8 @@ export const deviceService = {
 
   /**
    * Espera TODOS os dispositivos ficarem ONLINE no back-end (eles avisam pelo MQTT quando ligam).
-   * Hoje quem "liga" é o simulador (npm run mqtt:simulate); com o hardware real será o próprio aparelho
-   * e este código continua igual. Devolve false se o tempo esgotar.
+   * Dispositivo real: quem avisa é a própria placa. Dispositivo simulado: é o simulador
+   * (npm run mqtt:simulate). Este código é igual nos dois casos. Devolve false se o tempo esgotar.
    */
   async waitUntilOnline(
     petId: string,
