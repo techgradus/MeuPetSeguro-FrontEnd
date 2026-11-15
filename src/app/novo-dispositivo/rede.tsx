@@ -70,11 +70,6 @@ export default function WifiPortalScreen() {
 
       <Button title="Já configurei o Wi-Fi" onPress={() => router.push('/novo-dispositivo/conectando')} />
 
-      {__DEV__ && (
-        <Text style={styles.devHint}>
-          Modo de teste: sem o dispositivo real, rode o simulador.
-        </Text>
-      )}
     </DeviceFlowLayout>
   );
 }
@@ -110,8 +105,4 @@ const makeStyles = (dark: boolean) => StyleSheet.create(themed({
     padding: spacing.md, marginBottom: spacing.lg,
   },
   noteText: { flex: 1, fontFamily: fonts.medium, fontSize: 11, lineHeight: 17, color: colors.textMuted },
-  devHint: {
-    fontFamily: fonts.medium, fontSize: 11, lineHeight: 16, color: colors.textMuted,
-    textAlign: 'center', marginTop: spacing.md,
-  },
 }, dark));

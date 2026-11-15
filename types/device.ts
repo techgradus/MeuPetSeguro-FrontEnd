@@ -7,4 +7,5 @@ export type PetDevice = {
   online: boolean;
   battery: number | null;
   lastSyncAt: string | null;
+  simulated: boolean;
 };

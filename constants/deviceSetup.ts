@@ -9,6 +9,8 @@ import type { DeviceType } from '@/constants/deviceTypes';
  */
 export type SetupKind = 'colar' | 'estacao';
 
+export type SetupMode = 'real' | 'simulado';
+
 type IconName = keyof typeof Ionicons.glyphMap;
 
 export type SetupOption = {
@@ -70,6 +72,13 @@ export function validateSetupCode(kind: SetupKind, raw: string): string | null {
     return `O código começa com ${codePrefix}- e fica na etiqueta. Exemplo: ${codeExample}`;
   }
   return null;
+}
+
+export function generateSimulatedCode(kind: SetupKind): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let suffix = '';
+  for (let i = 0; i < 4; i++) suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return `${getSetupOption(kind).codePrefix}-SIM${suffix}`;
 }
 
 /** ID do chip, a parte depois do prefixo (ESTACAO-1A2B3C -> 1A2B3C). */

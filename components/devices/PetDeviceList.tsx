@@ -35,7 +35,7 @@ export function PetDeviceList({ devices, onRemove }: Props) {
             <View style={styles.texts}>
               <Text style={styles.label}>{info.label}</Text>
               <Text style={styles.meta} numberOfLines={1}>
-                {group.code} · {status}
+                {group.code} · {status}{group.devices.some((d) => d.simulated) ? ' · simulado' : ''}
               </Text>
             </View>
             <TouchableOpacity

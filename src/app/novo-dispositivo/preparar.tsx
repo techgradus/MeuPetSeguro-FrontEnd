@@ -42,7 +42,11 @@ export default function PrepareDeviceScreen() {
 
     try {
       const sameAsBefore =
-        !!registered && registered.petId === petId && registered.kind === kind && registered.code === normalized;
+        !!registered &&
+        registered.mode !== 'simulado' &&
+        registered.petId === petId &&
+        registered.kind === kind &&
+        registered.code === normalized;
 
       if (!sameAsBefore) {
         // Voltou e trocou o código ou o pet: o vínculo anterior deixa de valer
@@ -53,8 +57,11 @@ export default function PrepareDeviceScreen() {
           newDeviceDraft.set({ registered: undefined });
         }
 
-        const devices = await deviceService.registerSetup(petId, kind, normalized);
-        newDeviceDraft.set({ deviceCode: normalized, registered: { petId, kind, code: normalized, devices } });
+        const devices = await deviceService.registerSetup(petId, kind, normalized, 'real');
+        newDeviceDraft.set({
+          deviceCode: normalized,
+          registered: { petId, kind, code: normalized, mode: 'real', devices },
+        });
       }
 
       router.push('/novo-dispositivo/rede');

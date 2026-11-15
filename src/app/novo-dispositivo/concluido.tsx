@@ -45,7 +45,11 @@ export default function DeviceDoneScreen() {
         center
         kicker="Conexão concluída"
         title="Dispositivo conectado!"
-        subtitle="A conexão está ativa e pronta para acompanhar seu pet de qualquer lugar."
+        subtitle={
+          newDeviceDraft.get().mode === 'simulado'
+            ? 'O dispositivo simulado está ativo e enviando dados de teste para acompanhar seu pet.'
+            : 'A conexão está ativa e pronta para acompanhar seu pet de qualquer lugar.'
+        }
       />
 
       <View style={styles.card}>
